@@ -2,3 +2,4 @@
 build/
 dist/
 dw_tap.egg-info/
+*/__pycache__
