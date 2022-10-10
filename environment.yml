@@ -1,0 +1,20 @@
+name: dw-tap
+channels:
+- defaults
+- conda-forge
+dependencies:
+- python=3.8
+- jupyterlab
+- pip
+- pandas
+- geopandas
+- pyproj
+- numpy
+- matplotlib
+- seaborn
+- scikit-learn
+- tensorflow
+- openpyxl
+- windrose
+- pip:
+  - h5pyd

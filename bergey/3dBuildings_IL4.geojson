@@ -1,0 +1,6 @@
+{
+"type": "FeatureCollection",
+"features": [
+{ "type": "Feature", "properties": { "id": "US-8292066", "name": null, "roofMaterial": null, "type": null, "roofShape": null, "date": 201906.0, "roofDirection": null, "height": 10, "heightSrc": "ai", "levels": null }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -88.610804, 39.357212 ], [ -88.610804, 39.35731 ], [ -88.610966, 39.357311 ], [ -88.610966, 39.357204 ], [ -88.610933, 39.357204 ], [ -88.610933, 39.357163 ], [ -88.610839, 39.357163 ], [ -88.610839, 39.357212 ], [ -88.610804, 39.357212 ] ] ] } }
+]
+}
