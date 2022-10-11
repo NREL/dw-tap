@@ -6,8 +6,6 @@ from io import StringIO
 import tensorflow.keras.backend as K
 import math
 
-#dir_path = '/Users/dduplyak/repos/dw-tap-lom-anl/Latest version_Dmitry/'
-
 # Low Order Model:
 
 # Coefficient of determination

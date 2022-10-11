@@ -33,13 +33,23 @@ import dw_tap.interpolation.timeseries as timeseries
 import dw_tap.interpolation.interpolation as interpolation
 import dw_tap.vector.vector_transformation as transformation
 
-def getData(f, lat, lon, height, method='IDW', power_estimate=False): 
+def getData(f, lat, lon, height, method='IDW', power_estimate=False,
+           start_time_idx=None, end_time_idx=None, time_stride=None): 
     """
     Horizontally and vertically interpolates wind speed, wind direction, and potentially temperature and pressure. Horizontal interpolation for wind speed and direction uses inverse distance weight. Horizontal interpolation for temperature and pressure uses nearest neighbor. Vertical interpolation uses linear method for all variables. 
     Input: read in file, latitude, longitude, height of potential turbine/candidate turbine, horizontal interpolation method, boolean indicating whether temperature and pressure data will be needed for power estimate. 
     Output: (1) If power_estimate is true, returns are wind speed, wind direction, datetime, temperature and pressure. (2) If power_estimate is false, returns are wind speed, wind direction, and datetime. All values horizontally and vertically interpolated. 
     """
     dt = _getDateTime(f)
+    
+    if (start_time_idx is not None) and (end_time_idx is not None) and (time_stride is not None):
+        # All three are specified
+        dt=dt.iloc[start_time_idx:end_time_idx+1:time_stride].reset_index(drop=True)
+    else: 
+        start_time_idx = 0
+        end_time_idx = len(dt)
+        time_stride=1
+        
     point_lat_lon = (lat, lon)
     point_idx, dist, grid_points, x, y = _indicesForCoord(f, point_lat_lon[0], point_lat_lon[1])
     desired_point = points.XYZPoint(lat, lon, height, 'desired')
@@ -50,18 +60,22 @@ def getData(f, lat, lon, height, method='IDW', power_estimate=False):
     
     #Wind Speed Fetching
     dset = f['windspeed_40m']
-    ws = dset[:, minx:maxx+1, miny:maxy+1]
+    ws = dset[start_time_idx:end_time_idx+1:time_stride, 
+              minx:maxx+1, miny:maxy+1]
     ws = pd.DataFrame({'1': ws[:, 0, 0], '2': ws[:, 1, 0], '3': ws[:, 1, 1], '4': ws[:, 0, 1]})
     dset = f['windspeed_60m']
-    ws1 = dset[:, minx:maxx+1, miny:maxy+1]
+    ws1 = dset[start_time_idx:end_time_idx+1:time_stride,
+               minx:maxx+1, miny:maxy+1]
     ws1 = pd.DataFrame({'1': ws1[:, 0, 0], '2': ws1[:, 1, 0], '3': ws1[:, 1, 1], '4': ws1[:, 0, 1]})
     
     #Wind Direction Fetching
     dset = f['winddirection_40m']
-    wd = dset[:, minx:maxx+1, miny:maxy+1]
+    wd = dset[start_time_idx:end_time_idx+1:time_stride,
+              minx:maxx+1, miny:maxy+1]
     wd = pd.DataFrame({'1': wd[:, 0, 0], '2': wd[:, 1, 0], '3': wd[:, 1, 1], '4': wd[:, 0, 1]})
     dset = f['winddirection_60m']
-    wd1 = dset[:, minx:maxx+1, miny:maxy+1]
+    wd1 = dset[start_time_idx:end_time_idx+1:time_stride,
+               minx:maxx+1, miny:maxy+1]
     wd1 = pd.DataFrame({'1': wd1[:, 0, 0], '2': wd1[:, 1, 0], '3': wd1[:, 1, 1], '4': wd1[:, 0, 1]})
     
     #Spatial for vectors (horizontal and vertical)
@@ -92,20 +106,24 @@ def getData(f, lat, lon, height, method='IDW', power_estimate=False):
     
     if power_estimate == True: 
         dtemp = f['temperature_40m']
-        dtemp = dtemp[:, minx:maxx+1, miny:maxy+1]
+        dtemp = dtemp[start_time_idx:end_time_idx+1:time_stride,
+                      minx:maxx+1, miny:maxy+1]
         dtemp = pd.DataFrame({'1': dtemp[:,0,0], '2': dtemp[:,1,0], '3': dtemp[:,1,1], '4': dtemp[:,0,1]})
         dtemp1 = f['temperature_60m']
-        dtemp1 = dtemp1[:, minx:maxx+1, miny:maxy+1]
+        dtemp1 = dtemp1[start_time_idx:end_time_idx+1:time_stride,
+                        minx:maxx+1, miny:maxy+1]
         dtemp1 = pd.DataFrame({'1': dtemp1[:,0,0], '2': dtemp1[:,1,0], '3': dtemp1[:,1,1], '4': dtemp1[:,0,1]})
         dtemp = dtemp.apply(_interpolate_spatially_row, args=(dist, grid_points, x, y, 'nearest'), axis=1)
         dtemp1 = dtemp1.apply(_interpolate_spatially_row, args=(dist, grid_points, x, y, 'nearest'), axis=1)
         dtemp_final = _interpolate_vertically(lat, lon, dtemp, dtemp1, height, desired_point, "polynomial")
         
         dpres0 = f['pressure_0m']
-        dpres0 = dpres0[:, minx:maxx+1, miny:maxy+1]
+        dpres0 = dpres0[start_time_idx:end_time_idx+1:time_stride,
+                        minx:maxx+1, miny:maxy+1]
         dpres0 = pd.DataFrame({'1': dpres0[:,0,0], '2': dpres0[:,1,0], '3': dpres0[:,1,1], '4': dpres0[:,0,1]})
         dpres100 = f['pressure_100m']
-        dpres100 = dpres100[:, minx:maxx+1, miny:maxy+1]
+        dpres100 = dpres100[start_time_idx:end_time_idx+1:time_stride,
+                            minx:maxx+1, miny:maxy+1]
         dpres100 = pd.DataFrame({'1':dpres100[:,0,0],'2':dpres100[:,1,0],'3':dpres100[:,1,1],'4':dpres100[:,0,1]})
         dpres0 = dpres0.apply(_interpolate_spatially_row, args=(dist, grid_points, x, y, method), axis=1)
         dpres100 = dpres100.apply(_interpolate_spatially_row, args=(dist, grid_points, x, y, method), axis=1)
