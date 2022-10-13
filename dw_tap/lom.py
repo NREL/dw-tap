@@ -61,8 +61,11 @@ def run_lom(df, df_places, xy_turbine, z_turbine):
     t1 = time.time()
     total = t1-t0
     print('LOM time :', np.round(total/60,2), ' min')
-    return predictions_df
-
+    
+    #return predictions_df
+    # Clean up ANL's output
+    return predictions_df.rename(columns={"wtk": "ws", "nonlinear": "ws-adjusted"}).drop(columns=["linear"])
+    
 def _LatLon_To_XY(Lat,Lon):
     """
     Input: Lat, Lon coordinates in degrees. 

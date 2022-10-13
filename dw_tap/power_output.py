@@ -1,13 +1,13 @@
 import pandas as pd
 import numpy as np
 
-def estimate_power_output(df, temp, pres): 
+def estimate_power_output(df, temp, pres, ws_column="ws-adjusted"): 
     """
     Inputs: dataframe, temperature series and pressure series
     Outputs: total kw predicted over time period, instances with wind speed above possible generation, instances with wind speed below possible generation, lists of wind speeds above and below those marks
     """
     air_density = (pres) / (287.05 * temp)
-    df["nonlinear"] = (df["nonlinear"] * ((air_density/1.225)**(1/3)))
+    df["nonlinear"] = (df[ws_column] * ((air_density/1.225)**(1/3)))
     kw = Bergey10.windspeed_to_kw(df)
     above_curve_counter = Bergey10.above_curve_counter
     below_curve_counter = Bergey10.below_curve_counter
