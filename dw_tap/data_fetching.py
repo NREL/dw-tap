@@ -128,10 +128,27 @@ def getData(f, lat, lon, height, method='IDW', power_estimate=False,
         dpres0 = dpres0.apply(_interpolate_spatially_row, args=(dist, grid_points, x, y, method), axis=1)
         dpres100 = dpres100.apply(_interpolate_spatially_row, args=(dist, grid_points, x, y, method), axis=1)
         dpres_final = _interpolate_vertically(lat, lon, dpres0, dpres100, height, desired_point, "polynomial")
+        ws_result.name = "ws"
+        wd_result.name = "wd"
+        dt.name = "datetime"
+        dtemp_final.name = "temp"
+        dpres_final.name = "pres"
         
-        return ws_result, wd_result, dt, dtemp_final, dpres_final
+        df = pd.DataFrame(dt)
+        df = df.merge(ws_result, left_index=True, right_index=True)
+        df = df.merge(wd_result, left_index=True, right_index=True)
+        df = df.merge(dtemp_final, left_index=True, right_index=True)
+        df = df.merge(dpres_final, left_index=True, right_index=True)
         
-    return ws_result, wd_result, dt 
+        return df
+    
+        ws_result.name = "ws"
+        wd_result.name = "wd"
+        dt.name = "datetime"
+        df = pd.DataFrame(dt)
+        df = df.merge(ws_result, left_index=True, right_index=True)
+        df = df.merge(wd_result, left_index=True, right_index=True)
+    return df 
 
 def _getDateTime(f):
     """ Retrieves and parses date and time from data returning dt["datetime"] """

@@ -5,8 +5,18 @@ from dw_tap.loadMLmodel import loadMLmodel
 import numpy as np
 import time
 import pandas as pd
+import pyproj
 
-def run_lom(dates, ws, theta, df_places, xy_turbine, z_turbine, minx, maxx, miny, maxy): 
+def run_lom(df, df_places, xy_turbine, z_turbine):
+    footprint_size = 1000
+    dates, ws, theta = df["datetime"], df["ws"], df["wd"]
+    x1_turbine, y1_turbine = xy_turbine[0][0], xy_turbine[0][1]
+    x1_turbine, y1_turbine = _LatLon_To_XY(y1_turbine, x1_turbine)
+    minx = x1_turbine - footprint_size 
+    maxx = x1_turbine + footprint_size
+    miny = y1_turbine - footprint_size
+    maxy = y1_turbine + footprint_size
+    
     t0 = time.time()
     data, model = loadMLmodel()
     trees = False #True #False #True --> use trees #False --> don't use trees
@@ -52,3 +62,13 @@ def run_lom(dates, ws, theta, df_places, xy_turbine, z_turbine, minx, maxx, miny
     total = t1-t0
     print('LOM time :', np.round(total/60,2), ' min')
     return predictions_df
+
+def _LatLon_To_XY(Lat,Lon):
+    """
+    Input: Lat, Lon coordinates in degrees. 
+    _LatLon_To_XY uses the albers projection to transform the lat lon coordinates in degrees to meters. 
+    This is an internal function called by get_candidate.
+    Output: Meter representation of coordinates. 
+    """
+    P = pyproj.Proj("+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-96 +x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs")
+    return P(Lon, Lat) #returned x, y note: lon has to come first here when calling
