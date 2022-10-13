@@ -185,10 +185,7 @@ def _indicesForCoord(f, lat, lon):
     tuples.append(tuple(reversed([int(math.floor(delta[0]/2000)) + 1, int(math.floor(delta[1]/2000))]))) #(min, max) #bottom right
     
     bottom_left = np.array([int(math.floor(x/2000)) for x in delta]) #bottom left, lon, lat
-    print(bottom_left)
-    print(bottom_left[1] + 1)
     bottom_left_delta = np.subtract(delta, bottom_left * 2000) #bottom left
-    print(bottom_left_delta)
     bottom_left_dist = math.sqrt(np.sum(np.inner(bottom_left_delta, bottom_left_delta))) #bottom left
     top_left_delta = np.subtract(delta, ((bottom_left + [0, 1]) * 2000)) #top left
     top_left_dist = math.sqrt(np.sum(np.inner(top_left_delta, top_left_delta))) #top left
