@@ -100,7 +100,7 @@ def getData(f, lat, lon, height, method='IDW', power_estimate=False,
     v_final = _interpolate_vertically(lat, lon, v, v1, height, desired_point, "polynomial")
     
     ws_result = transformation._convert_to_ws(v_final, u_final) 
-    wd_result = transformation._convert_to_degrees(v_final, u_final)
+    wd_result = transformation._convert_to_degrees(u_final, v_final)
     
     wd_result = wd_result.apply(transformation._convert_to_math_deg, args=())
     
