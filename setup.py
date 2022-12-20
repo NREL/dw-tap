@@ -31,6 +31,6 @@ setup(
         'Source': 'https://github.com/NREL/dw-tap',
     },
     package_data = {
-        '': ['anl-lom-models/*'],
+        '': ['anl-lom-models/*', 'anl-lom-models/checkpoints/*'],
     },
 )

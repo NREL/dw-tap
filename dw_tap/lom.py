@@ -1,6 +1,7 @@
 from dw_tap.data_processing import geojson_toCoordinate
 from dw_tap.data_processing import prepare_data
-from dw_tap.loadMLmodel import loadMLmodel
+#from dw_tap.loadMLmodel import loadMLmodel
+from dw_tap.LOMvectorized import loadMLmodel
 
 import numpy as np
 import time
@@ -8,6 +9,7 @@ import pandas as pd
 import pyproj
 
 def run_lom(df, df_places, xy_turbine, z_turbine):
+    print("run_lom: starting")
     footprint_size = 1000
     dates, ws, theta = df["datetime"], df["ws"], df["wd"]
     x1_turbine, y1_turbine = xy_turbine[0][0], xy_turbine[0][1]
@@ -18,48 +20,78 @@ def run_lom(df, df_places, xy_turbine, z_turbine):
     maxy = y1_turbine + footprint_size
     
     t0 = time.time()
-    data, model = loadMLmodel()
+    model = loadMLmodel()
+    print("run_lom: loaded model")
+    
     trees = False #True #False #True --> use trees #False --> don't use trees
     porosity = 0.0  
     xy,H, eps=geojson_toCoordinate(df_places,minx,maxx,miny,maxy,trees, porosity)
     eps=np.array(eps) #make an array of porosities
+    print("run_lom: after geojson_toCoordinate")
 
     #centroid x, centroid y, transformed XYp[x,y], rotated XYr[theta][x,y], L[theta], W[theta],XYti
     xc,yc,xyp,xyr,L,W, xyt =prepare_data(xy,xy_turbine, theta)
-
+    print("run_lom: after prepare_data")
     #xc not used, yc not used, xyp not used, xyr not used
 
-    f=np.zeros((len(xy_turbine),len(L),len(L[0])))
-    fsum=np.zeros((len(xy_turbine),len(L[0])))
-    fnlsum=np.zeros((len(xy_turbine),len(L[0])))
-    upl=np.zeros((len(xy_turbine),len(L[0])))
-    upnl=np.zeros((len(xy_turbine),len(L[0])))
-    plot_test_data = np.zeros(shape=(1,6),dtype='float32')
+    # beginning of vectorized version
+    
+    t0 = time.time()
 
-    # running LOM for all the obstacles, turbines and angles of attack
-    for i in range(len(xy_turbine)): #loop over turbines number# #not needed?
-        for k in range (len(L[0])): #loop over theta #L[0] will be array of directions
-            for j in range (len(L)):    #loop over building number
-                if (xyt[j][i][k,1] > 0.0): #turbine upwind of the obstacle --> f =0.0
-                    f[i,j,k] = 0.
-                else: #turbine in the wake of the obstacle --> f =0.0
-                    plot_test_data[0,0] = H[j]/H[j]   #H changes between objects
-                    plot_test_data[0,1] = W[j][k]/H[j]   #W alters with theta
-                    plot_test_data[0,2] = L[j][k]/H[j]   #L alters with theta
-                    plot_test_data[0,3] = abs(xyt[j][i][0,1]/H[j]) #s_turbine: alters with theta stramwise direction
-                    plot_test_data[0,4] = (xyt[j][i][0,0]/H[j])   #w_turbine: alters with theta -spanwise direction
-                    plot_test_data[0,5] = z_turbine/H[j]  #z[:]: constant
-                    outputs_0  = model.make_predictions(plot_test_data)
-                    ws = np.array(ws)
-                    f[i,j,:] = outputs_0*ws[:]*np.power(H[j]/15.,0.143)*(1.-eps[j])
-            fsum[i,k] =np.sum(f[i,:,k])
-            fnlsum[i,k] =np.sqrt(np.sum(f[i,:,k]*f[i,:,k]))
-            upnl[i,k]=ws[k]-fnlsum[i,k]
-            upl[i,k]=ws[k]-fsum[i,k]
-    predictions_df = pd.DataFrame({'timestamp': dates, 'linear':upl[0], 'nonlinear':upnl[0]})
-    predictions_df['wtk'] = ws 
+    plot_test_data = np.zeros((len(L[0])*len(L)*len(xy_turbine),6))
+    wss=np.zeros(len(L[0])*len(L)*len(xy_turbine))
+    kk=0
+    for i in range(len(xy_turbine)): #loop over turbines number#
+        for j in range (len(L)):    #loop over building number#
+            for k in range (len(L[0])): #loop over theta
+
+                plot_test_data[kk,0] = H[j]/H[j]   #H changes between objects
+                plot_test_data[kk,1] = W[j][k]/H[j]   #W alters with theta
+                plot_test_data[kk,2] = L[j][k]/H[j]   #L alters with theta
+
+                plot_test_data[kk,3] = abs(xyt[j][i][k,1]/H[j]) #s_turbine: alters with theta stramwise direction
+                plot_test_data[kk,4] = (xyt[j][i][k,0])/H[j]   #w_turbine: alters with theta -spanwise direction
+                plot_test_data[kk,5] = z_turbine/H[j]  #z[:]: constant
+                wss[kk]=ws[k]
+                #plot_test_data[kk,6] = 0.0  #z[:]: constant
+
+                kk=kk+1
+
     t1 = time.time()
     total = t1-t0
+
+    print('time to fill arrays :', total, ' sec')
+
+    #if model == "LOM":
+    outputs_0  = model.make_predictions(plot_test_data) 
+    print("outputs_0", outputs_0)
+    #if model == "ML":
+    #    outputs_0  = LOMML.make_predictions(plot_test_data)            
+
+    f=np.zeros(len(outputs_0))
+    f=(outputs_0[:,0])*(wss)*np.power((plot_test_data[:,0])/z_turbine,0.143)#*(1.-eps[j])
+    out2=f.reshape(len(L),len(L[0])).T
+
+    #fnl=np.zeros(ws[:])
+    fl =out2.sum(axis=1)
+    fnl1=out2[:]*out2[:]
+    fnl =fnl1.sum(axis=1)
+
+    upnl = ws[:]-fnl[:]
+    upl = ws[:]-fl[:]
+
+    #fnlsum[i,k] =np.sqrt(np.sum(f[i,:,k]*f[i,:,k]))            
+
+    t1 = time.time()
+    total = t1-t0
+
+    print('computation time :', total, ' sec')
+
+    predictions_df = pd.DataFrame({'timestamp': dates, 'linear':upl, 'nonlinear':upnl})
+    predictions_df['wtk'] = ws 
+    
+    # end of vectorized version
+    
     print('LOM time :', np.round(total/60,2), ' min')
     
     #return predictions_df
