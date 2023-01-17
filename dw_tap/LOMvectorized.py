@@ -251,9 +251,9 @@ class regression_model(Model):
 
     # Load weights
     def restore_model(self):
+        # "/my_checkpoint" at the end of the path is working fine (unlike "/my_checkpoint.index")
         checkpoint_dir = os.path.join(os.path.dirname(sys.modules['dw_tap'].__file__),
-                                      'anl-lom-models/checkpoints/my_checkpoint.index')
-        print("checkpoint_dir:", checkpoint_dir)
+                                      'anl-lom-models/checkpoints/my_checkpoint')
         self.load_weights(checkpoint_dir) # Load pretrained model
 
     # Do some testing
@@ -285,9 +285,8 @@ class regression_model(Model):
     # Do some testing
     def make_predictions(self,input_data):
         
-        print("input_data:", input_data)
         # Restore from checkpoint
-        self.restore_model()
+        #self.restore_model()
 
         # Predict for new data
         predictions = self.call(input_data)
@@ -302,8 +301,7 @@ class regression_model(Model):
         Dy = tf.math.exp(logDy)
 
 
-        np.nan_to_num(predictions, nan=0.)
-        
+        predictions = np.nan_to_num(predictions, nan=0.)
         
         return predictions#, Dz.numpy(), Dy.numpy()
 
@@ -333,7 +331,9 @@ def loadMLmodel():
 
     model = regression_model(data)
     
-    #model.restore_model()
+    model.restore_model()
+    
+    # model.test_model()
     
     return model
 
