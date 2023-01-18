@@ -53,7 +53,7 @@ def _convert_to_vector_v(wd, wd1, ws, ws1):
 
 def _convert_to_degrees(u, v):
     """ Converts u and v vector components to mathmatical degrees """ 
-    result = (180/math.pi) * np.arctan2(-v, -u)
+    result = (180/math.pi) * np.arctan2(-u, -v)
     return result
 
 def _convert_to_met_deg(row):
