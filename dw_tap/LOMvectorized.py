@@ -41,6 +41,8 @@ import numpy as np
 import time
 #import PILOWFlogo
 
+from functools import lru_cache
+
 # Coefficient of determination
 def coeff_determination(y_pred, y_true): #Order of function inputs is important here        
     SS_res =  np.sum(np.square( y_true-y_pred )) 
@@ -305,6 +307,7 @@ class regression_model(Model):
         
         return predictions#, Dz.numpy(), Dy.numpy()
 
+@lru_cache(maxsize=None)
 def loadMLmodel():
 
     '''
@@ -334,6 +337,7 @@ def loadMLmodel():
     model.restore_model()
     
     # model.test_model()
+    print("Done with loading ML model.")
     
     return model
 

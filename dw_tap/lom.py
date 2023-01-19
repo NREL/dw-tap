@@ -9,7 +9,9 @@ import time
 import pandas as pd
 import pyproj
 
-def run_lom(df, df_places, xy_turbine, z_turbine):
+def run_lom(df, df_places, xy_turbine, z_turbine,
+           check_distance=False):
+    
     footprint_size = 1000
     dates, ws, theta = df["datetime"], df["ws"], df["wd"]
     x1_turbine, y1_turbine = xy_turbine[0][0], xy_turbine[0][1]
@@ -23,15 +25,26 @@ def run_lom(df, df_places, xy_turbine, z_turbine):
     maxy = y1_turbine + footprint_size
     
     t0 = time.time()
-    model = loadMLmodel()
     
     trees = False #True #False #True --> use trees #False --> don't use trees
     porosity = 0.0  
-    xy,H, eps=geojson_toCoordinate(df_places,minx,maxx,miny,maxy,trees, porosity)
-    eps=np.array(eps) #make an array of porosities
+    xy, H, eps = geojson_toCoordinate(df_places, minx, maxx, miny, maxy, trees, porosity)
+    eps = np.array(eps) #make an array of porosities
 
+    if check_distance:
+        deltas_m = (np.concatenate(xy) - xy_turbine)
+        min_dist_m = np.sqrt(np.min([np.dot(r, r) for r in deltas_m]))
+        # 3km is a reasonable default for catching cases with turbines being far away from the buildings
+        if min_dist_m > 3000:
+            # ToDo: replace this with proper DEBUG message
+            print("WARNING: studied point is too far buildings (min dist: %.1fm); velocity deficit=0" % min_dist_m)
+            predictions_df = pd.DataFrame({'timestamp': dates, 'ws': ws, 'ws-adjusted': ws})    
+            return predictions_df
+            
+    model = loadMLmodel()
+            
     #centroid x, centroid y, transformed XYp[x,y], rotated XYr[theta][x,y], L[theta], W[theta],XYti
-    xc,yc,xyp,xyr,L,W, xyt = prepare_data(xy, xy_turbine, theta)
+    xc, yc, xyp, xyr, L, W, xyt = prepare_data(xy, xy_turbine, theta)
     #xc not used, yc not used, xyp not used, xyr not used
 
     # beginning of vectorized version
@@ -93,14 +106,3 @@ def run_lom(df, df_places, xy_turbine, z_turbine):
     #return predictions_df.rename(columns={"wtk": "ws", "nonlinear": "ws-adjusted"}).drop(columns=["linear"])
     
     return predictions_df
-    
-    
-#def _LatLon_To_XY(Lat,Lon):
-#    """
-#    Input: Lat, Lon coordinates in degrees. 
-#    _LatLon_To_XY uses the albers projection to transform the lat lon coordinates in degrees to meters. 
-#    This is an internal function called by get_candidate.
-#    Output: Meter representation of coordinates. 
-#    """
-#    P = pyproj.Proj("+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-96 +x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs")
-#    return P(Lon, Lat) #returned x, y note: lon has to come first here when calling
