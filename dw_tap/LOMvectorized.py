@@ -1,49 +1,57 @@
-from tensorflow.keras import Model
+# -*- coding: utf-8 -*-
+"""
+A physics-informed data-driven low order model for the wind velocity deficit at the wake of isolated buildings.
+
+Prepared by
+Dimitrios K. Fytanidis, Romit Maulik, Ramesh Balakrishnan, and Rao Kotamarthi
+Argonne National Laboratory, Lemont, IL
+
+
+"""
+
+
+
+import os
+import sys
+
 import tensorflow as tf
+tf.random.set_seed(10)
+from tensorflow.keras import Model
 import numpy as np
+np.random.seed(10)
+import math
+
 import pkgutil
 from io import StringIO
-import tensorflow.keras.backend as K
-import math
+
+# preprocessing
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import StandardScaler
+from tensorflow.keras import backend as K
+# tf.keras.backend.set_floatx('float64')
+
+# Plotting
+import matplotlib.pyplot as plt
+
+# loading of the data
+import numpy as np
+
+
+import time
+#import PILOWFlogo
+
 from functools import lru_cache
 
-# Low Order Model:
-
 # Coefficient of determination
-def coeff_determination(y_pred, y_true): #Order of function inputs is important here
-    SS_res =  np.sum(np.square( y_true-y_pred ))
+def coeff_determination(y_pred, y_true): #Order of function inputs is important here        
+    SS_res =  np.sum(np.square( y_true-y_pred )) 
     SS_tot = np.sum(np.square( y_true - np.mean(y_true) ) )
     return ( 1 - SS_res/(SS_tot + 2.22044604925e-16) )
 
-@lru_cache(maxsize=None)
-def load_data():
-    '''
-    do something
-    return data as (num_points,7) array
-
-    '''
-    # Order of inputs - H, W, L, x, y, z - as column inputs
-    # Last column of data is f (target)
-    #  x,   y,  z,  H, Lx, Ly, U, V, W, f, fg, dUdz, k, tau
-    #  0,   1,  2,  3,  4,  5, 6, 7, 8, 9, 10,   11, 12, 13
-    
-    #data1 = np.loadtxt(filename)
-    txt = StringIO(pkgutil.get_data('dw_tap', 'anl-lom-models/1x1x1-2-3-1x2x1i-cheb.dat').decode('UTF-8'))
-    data1 = np.loadtxt(txt)
-
-    data  = np.column_stack((data1[:,3], data1[:,5], data1[:,4], data1[:,0], data1[:,1], data1[:,2], data1[:,10]))
-
-    # for i, x in enumerate(data[:,6]):
-    #     if data[i,6] > 0:
-    #       data[i,6] = 0
-
-    data[:,-1] = np.exp(data[:,-1])
-
-    return data
-
 #Build the model which does basic map of inputs to targets
 class regression_model(Model):
-    # Order of inputs - H, W, L, x, y, z - as column inputs
+    # Order of inputs - H, W, L, x, y, z - as column inputs 
     # Last column of data is f (target)
     def __init__(self, data):
         super(regression_model, self).__init__()
@@ -87,21 +95,21 @@ class regression_model(Model):
         # Define NN architecture - correction component
         self.yv_net_0=tf.keras.layers.Dense(30,input_shape=(3,),activation='tanh')
         self.yv_net_1=tf.keras.layers.Dense(30,activation='tanh')
-        self.yv_net_2=tf.keras.layers.Dense(1,activation='linear')
+        self.yv_net_2=tf.keras.layers.Dense(1,activation='linear')        
 
         self.gamma_net_0=tf.keras.layers.Dense(30,input_shape=(3,),activation='tanh')
         self.gamma_net_1=tf.keras.layers.Dense(30,activation='tanh')
-        self.gamma_net_2=tf.keras.layers.Dense(1,activation='linear')
+        self.gamma_net_2=tf.keras.layers.Dense(1,activation='linear')        
 
         self.h_net_0=tf.keras.layers.Dense(30,input_shape=(3,),activation='tanh')
         self.h_net_1=tf.keras.layers.Dense(30,activation='tanh')
-        self.h_net_2=tf.keras.layers.Dense(1,activation='linear')
+        self.h_net_2=tf.keras.layers.Dense(1,activation='linear')        
 
         self.train_op = tf.keras.optimizers.Adam(learning_rate=0.001)
-  
+    
     # Running the model (eager mode - use tf.gather/gather_nd for @tf.function decorator)
     def call(self,X):
-        # Order of inputs - H, W, L, x, y, z - as column inputs
+        # Order of inputs - H, W, L, x, y, z - as column inputs 
         chi = X[:,3:4]/X[:,0:1]
         yi = X[:,4:5]/X[:,0:1]
         zi = X[:,5:6]/X[:,0:1]
@@ -115,7 +123,7 @@ class regression_model(Model):
         hh = self.x0_net_0(net_inputs)
         hh = self.x0_net_1(hh)
         x0 = self.x0_net_2(hh)
-
+     
         net_inputs = X[:,:6]
 
         hh = self.Dz_net_0(net_inputs)
@@ -133,10 +141,10 @@ class regression_model(Model):
         lamy = tf.math.abs(tf.math.pow(Dy*(chi-x0),0.5))+K.epsilon()
 
         ksi = zi/(lamz)
-        eta = yi/(lamy)
+        eta = yi/(lamy)              
 
         g = ksi/2.0*tf.math.exp(-ksi*ksi/4.0)
-
+        
         h = 1/2/tf.math.sqrt(np.pi)*tf.math.exp(-eta*eta/4.0)
         f = (alpha*(X[:,1:2]/(lamy))*((X[:,0:1]/lamz)**2)*g*h)
 
@@ -158,17 +166,17 @@ class regression_model(Model):
         hh = self.h_net_1(hh)
         small_h = tf.exp(self.h_net_2(hh))
 
-        # calculate correction
+        # calculate correction 
         yp = yv - yi
         zi = tf.cast(zi,dtype='float32')
         al = tf.math.pow(yp,2)+tf.math.pow(small_h,2)+tf.math.pow(zi,2)
         #al = tf.math.pow(yp,2)+small_h+tf.math.pow(zi,2)
 
         fprime = tf.math.minimum(gamma*small_h*yp*chi/(tf.math.pow(al,2)-tf.math.pow(2*zi*small_h,2)+K.epsilon()),2.0)
-
+        
         return tf.math.exp(f+fprime)
-
-       # Regular MSE
+    
+    # Regular MSE
     def get_loss(self,X,Y):
         op = self.call(X)
 
@@ -181,7 +189,7 @@ class regression_model(Model):
             L = self.get_loss(X,Y)
             g = tape.gradient(L, self.trainable_variables)
         return g
-
+    
     # perform gradient descent - regular
     def network_learn(self,X,Y):
         g = self.get_grad(X,Y)
@@ -198,11 +206,11 @@ class regression_model(Model):
         self.train_batch_size = int(self.ntrain/self.num_batches)
         self.valid_batch_size = int(self.nvalid/self.num_batches)
 
-
+        
         for i in range(4000):
             # Training loss
             print('Training iteration:',i)
-
+            
             for batch in range(self.num_batches):
                 input_batch = self.training_data[batch*self.train_batch_size:(batch+1)*self.train_batch_size,:-1]
                 output_batch = self.training_data[batch*self.train_batch_size:(batch+1)*self.train_batch_size,-1].reshape(-1,1)
@@ -225,14 +233,14 @@ class regression_model(Model):
 
             # Check early stopping criteria
             if valid_loss < best_valid_loss:
-
+                
                 print('Improved validation loss from:',best_valid_loss,' to:', valid_loss)
                 print('Validation R2:',valid_r2)
-
+                
                 best_valid_loss = valid_loss
 
                 self.save_weights('./checkpoints/my_checkpoint')
-
+                
                 stop_iter = 0
             else:
                 print('Validation loss (no improvement):',valid_loss)
@@ -241,11 +249,14 @@ class regression_model(Model):
 
             if stop_iter == patience:
                 break
-
+                
 
     # Load weights
     def restore_model(self):
-        self.load_weights(dir_path+'/checkpoints/my_checkpoint') # Load pretrained model
+        # "/my_checkpoint" at the end of the path is working fine (unlike "/my_checkpoint.index")
+        checkpoint_dir = os.path.join(os.path.dirname(sys.modules['dw_tap'].__file__),
+                                      'anl-lom-models/checkpoints/my_checkpoint')
+        self.load_weights(checkpoint_dir) # Load pretrained model
 
     # Do some testing
     def test_model(self):
@@ -275,6 +286,7 @@ class regression_model(Model):
 
     # Do some testing
     def make_predictions(self,input_data):
+        
         # Restore from checkpoint
         #self.restore_model()
 
@@ -290,18 +302,45 @@ class regression_model(Model):
         logDy = self.Dy_net_1(hh)
         Dy = tf.math.exp(logDy)
 
-        if  math.isnan(predictions):
-            #print ("NAN IS FOUND")
-            predictions = 0.0
-        return predictions
+
+        predictions = np.nan_to_num(predictions, nan=0.)
+        
+        return predictions#, Dz.numpy(), Dy.numpy()
 
 @lru_cache(maxsize=None)
-def loadMLmodel(): 
-    """Loads in ML LOM model from .dat file"""
+def loadMLmodel():
+
+    '''
+    do something
+    return data as (num_points,7) array
+
+    '''
+    # Order of inputs - H, W, L, x, y, z - as column inputs 
+    # Last column of data is f (target)
+    #  x,   y,  z,  H, Lx, Ly, U, V, W, f, fg, dUdz, k, tau
+    #  0,   1,  2,  3,  4,  5, 6, 7, 8, 9, 10,   11, 12, 13  
     
-    # dw_tap/ in the path is required to read in data from inside the installed package
-    #data = load_data('dw_tap/anl-lom-models/1x1x1-2-3-1x2x1i-cheb.dat')
-    data = load_data()
+    #data1 = np.loadtxt(filename)
+    txt = StringIO(pkgutil.get_data('dw_tap', 'anl-lom-models/1x1x1-2-3-1x2x1i-cheb.dat').decode('UTF-8'))
+    data1 = np.loadtxt(txt)
+    
+    data  = np.column_stack((data1[:,3], data1[:,5], data1[:,4], data1[:,0], data1[:,1], data1[:,2], data1[:,10]))
+    
+    # for i, x in enumerate(data[:,6]):
+    #     if data[i,6] > 0:
+    #       data[i,6] = 0
+
+    data[:,-1] = np.exp(data[:,-1])
 
     model = regression_model(data)
-    return data, model
+    
+    model.restore_model()
+    
+    # model.test_model()
+    print("Done with loading ML model.")
+    
+    return model
+
+
+
+
