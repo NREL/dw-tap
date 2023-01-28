@@ -45,7 +45,6 @@ class Bergey10(object):
             if kw.loc[i] <= 0: 
                 cls.below_curve_counter += 1
                 cls.below_curve_list.append(tuple((df["timestamp"][i], kw[i])))
-            
             if ws.loc[i] > cls.max_ws:
                 cls.above_curve_counter += 1
                 cls.above_curve_list.append(tuple((df["timestamp"][i], ws[i])))
