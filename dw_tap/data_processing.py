@@ -219,3 +219,61 @@ def _LatLon_To_XY(Lat,Lon):
     P = pyproj.Proj("+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-96 +x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs")
     
     return P(Lon, Lat) #returned x, y note: lon has to come first here when calling
+
+def wd_to_bin_avg(v, wd_bins):
+    """ Maps wind direction to a bin average given a set of wind direction bin limits """
+    for b in wd_bins:
+        lb, hb = b[0], b[1]
+        if v >= lb and v < hb:
+            return (lb + hb) / 2.0
+    if v == wd_bins[-1][1]:
+        lb, hb = wd_bins[-1][0], wd_bins[-1][1]
+        return (lb + hb) / 2.0
+    raise ValueError("Given wind direction value (%.3f) doesn't fit any of the created bins" % v)
+    return np.nan
+
+def ws_to_bin_avg(v, ws_bins):
+    """ Maps wind speed to a bin average given a set of wind speed bin limits """
+    for b in ws_bins:
+        lb, hb = b[0], b[1]
+        if v >= lb and v < hb:
+            return (lb + hb) / 2.0
+    if v == ws_bins[-1][1]:
+        lb, hb = ws_bins[-1][0], ws_bins[-1][1]
+        return (lb + hb) / 2.0
+    raise ValueError("Given wind speed value (%.3f) doesn't fit any of the created bins" % v)
+    return np.nan
+
+def wind_binning(atmospheric_df, wd_bin_width=10.0, ws_bin_width=1.0):
+    """ Maps a dataframe with wind data to bins; outputs two dataframes: timeseries (with row-wise references to bins) and bins dataframe"""
+
+    wd_bin_stops = np.linspace(0, 360, int(360 / wd_bin_width) + 1, endpoint=True)
+    wd_bins = [(wd_bin_stops[i], wd_bin_stops[i+1]) for i in range(len(wd_bin_stops)-1)]
+
+    ws_max = math.ceil(atmospheric_df["ws"].max())
+    ws_bin_stops = np.linspace(0, ws_max, int(ws_max / ws_bin_width) + 1, endpoint=True)
+    ws_bins = [(ws_bin_stops[i], ws_bin_stops[i+1]) for i in range(len(ws_bin_stops)-1)]
+    
+    atmospheric_df_binned = atmospheric_df.copy()
+    atmospheric_df_binned["wd"] = atmospheric_df_binned["wd"].apply(lambda x: ws_to_bin_avg(x, wd_bins))
+    atmospheric_df_binned["ws"] = atmospheric_df_binned["ws"].apply(lambda x: ws_to_bin_avg(x, ws_bins))
+    #return atmospheric_df_binned
+    
+    atmospheric_df_binned["bin_idx"] = -1
+    grouped = atmospheric_df_binned.groupby(["ws", "wd"])
+
+    # Create dataframe with bin averages for ws and wd and 
+    # make the rows in the original dataframe with timeseries refer to the corresponding bin rows
+
+    atmospheric_bins = pd.DataFrame(columns=["ws", "wd"], index=range(len(grouped)))
+    for bin_idx, (idx, grp) in enumerate(grouped):
+        atmospheric_bins.iloc[bin_idx] = list(idx)
+        for grp_idx, row in grp.iterrows():
+            atmospheric_df_binned.at[grp_idx, "bin_idx"] = bin_idx
+            
+    if atmospheric_df_binned["bin_idx"].min() < 0:
+        # i.e., if there are -1 present (unmapped rows):
+        raise ValueError("Possible issue with data binning: at least one row has not been mapped to bin averages")
+            
+    return atmospheric_df_binned, atmospheric_bins
+
