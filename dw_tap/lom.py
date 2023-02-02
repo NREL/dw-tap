@@ -92,7 +92,7 @@ def run_lom(df, df_places, xy_turbine, z_turbine,
     t1 = time.time()
     total = t1-t0
 
-    print('LOM computation time :', total, ' sec')
+    #print('LOM computation time :', total, ' sec')
 
     #predictions_df = pd.DataFrame({'timestamp': dates, 'linear':upl, 'nonlinear':upnl})
     #predictions_df['wtk'] = ws 
