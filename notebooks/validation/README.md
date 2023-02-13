@@ -1,6 +1,6 @@
 1. acqiure and prepare data (Jenna)
+   - Bias Correction incorporated
 2. run models (TBD)
-   - Bias correction?
    - LANL
    - ANL
    - ML?
