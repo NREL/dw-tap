@@ -16,5 +16,9 @@ dependencies:
 - tensorflow
 - openpyxl
 - windrose
+- plotly
+- pydeck
 - pip:
   - h5pyd
+  - rosely
+  - kaleido

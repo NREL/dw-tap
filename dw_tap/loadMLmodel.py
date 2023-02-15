@@ -5,6 +5,7 @@ import pkgutil
 from io import StringIO
 import tensorflow.keras.backend as K
 import math
+from functools import lru_cache
 
 # Low Order Model:
 
@@ -14,6 +15,7 @@ def coeff_determination(y_pred, y_true): #Order of function inputs is important 
     SS_tot = np.sum(np.square( y_true - np.mean(y_true) ) )
     return ( 1 - SS_res/(SS_tot + 2.22044604925e-16) )
 
+@lru_cache(maxsize=None)
 def load_data():
     '''
     do something
@@ -293,6 +295,7 @@ class regression_model(Model):
             predictions = 0.0
         return predictions
 
+@lru_cache(maxsize=None)
 def loadMLmodel(): 
     """Loads in ML LOM model from .dat file"""
     

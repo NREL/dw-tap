@@ -33,7 +33,9 @@ import dw_tap.interpolation.timeseries as timeseries
 import dw_tap.interpolation.interpolation as interpolation
 import dw_tap.vector.vector_transformation as transformation
 
-def getData(f, lat, lon, height, method='IDW', power_estimate=False,
+def getData(f, lat, lon, height, method='IDW', 
+           power_estimate=False,
+           inverse_monin_obukhov_length = False, 
            start_time_idx=None, end_time_idx=None, time_stride=None): 
     """
     Horizontally and vertically interpolates wind speed, wind direction, and potentially temperature and pressure. Horizontal interpolation for wind speed and direction uses inverse distance weight. Horizontal interpolation for temperature and pressure uses nearest neighbor. Vertical interpolation uses linear method for all variables. 
@@ -100,11 +102,16 @@ def getData(f, lat, lon, height, method='IDW', power_estimate=False,
     v_final = _interpolate_vertically(lat, lon, v, v1, height, desired_point, "polynomial")
     
     ws_result = transformation._convert_to_ws(v_final, u_final) 
-    wd_result = transformation._convert_to_degrees(v_final, u_final)
+    wd_result = transformation._convert_to_degrees(u_final, v_final)
     
     wd_result = wd_result.apply(transformation._convert_to_math_deg, args=())
     
-    if power_estimate == True: 
+    dt.name = "datetime"
+    df = pd.DataFrame(dt)
+    df["ws"] = ws_result
+    df["wd"] = wd_result
+    
+    if power_estimate: 
         dtemp = f['temperature_40m']
         dtemp = dtemp[start_time_idx:end_time_idx+1:time_stride,
                       minx:maxx+1, miny:maxy+1]
@@ -128,26 +135,18 @@ def getData(f, lat, lon, height, method='IDW', power_estimate=False,
         dpres0 = dpres0.apply(_interpolate_spatially_row, args=(dist, grid_points, x, y, method), axis=1)
         dpres100 = dpres100.apply(_interpolate_spatially_row, args=(dist, grid_points, x, y, method), axis=1)
         dpres_final = _interpolate_vertically(lat, lon, dpres0, dpres100, height, desired_point, "polynomial")
-        ws_result.name = "ws"
-        wd_result.name = "wd"
-        dt.name = "datetime"
-        dtemp_final.name = "temp"
-        dpres_final.name = "pres"
         
-        df = pd.DataFrame(dt)
-        df = df.merge(ws_result, left_index=True, right_index=True)
-        df = df.merge(wd_result, left_index=True, right_index=True)
-        df = df.merge(dtemp_final, left_index=True, right_index=True)
-        df = df.merge(dpres_final, left_index=True, right_index=True)
+        df["temp"] = dtemp_final
+        df["pres"] = dpres_final
+                
+    if inverse_monin_obukhov_length:
+        dimol = f['inversemoninobukhovlength_2m']
+        dimol = dimol[start_time_idx:end_time_idx+1:time_stride,
+                      minx:maxx+1, miny:maxy+1]
+        dimol = pd.DataFrame({'1': dimol[:,0,0], '2': dimol[:,1,0], '3': dimol[:,1,1], '4': dimol[:,0,1]})
+        dimol_final = dimol.apply(_interpolate_spatially_row, args=(dist, grid_points, x, y, 'IDW'), axis=1)
+        df["inversemoninobukhovlength_2m"] = dimol_final
         
-        return df
-    
-        ws_result.name = "ws"
-        wd_result.name = "wd"
-        dt.name = "datetime"
-        df = pd.DataFrame(dt)
-        df = df.merge(ws_result, left_index=True, right_index=True)
-        df = df.merge(wd_result, left_index=True, right_index=True)
     return df 
 
 def get_data_wtk_led_on_eagle(myr, 
