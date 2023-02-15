@@ -22,6 +22,7 @@ def _convert_to_vector_u(wd, wd1, ws, ws1):
     df1 = pd.DataFrame(temp2_1_1, columns=['1']).join(pd.DataFrame(temp2_2_1, columns=['2']))
     df1 = df1.join(pd.DataFrame(temp2_3_1, columns=['3']))
     df1 = df1.join(pd.DataFrame(temp2_4_1, columns=['4']))
+    
     return neg_ws.mul(df), neg_ws1.mul(df1)
 
 def _convert_to_vector_v(wd, wd1, ws, ws1):
@@ -54,6 +55,9 @@ def _convert_to_vector_v(wd, wd1, ws, ws1):
 def _convert_to_degrees(u, v):
     """ Converts u and v vector components to mathmatical degrees """ 
     result = (180/math.pi) * np.arctan2(-v, -u)
+    #print("u:\n", u)
+    #print("v:\n", v)
+    #print("res:\n", result)      
     return result
 
 def _convert_to_met_deg(row):
