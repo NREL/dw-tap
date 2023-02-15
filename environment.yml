@@ -18,6 +18,10 @@ dependencies:
 - windrose
 - plotly
 - pydeck
+- tqdm
+- fiona
+- shapely
+- scipy
 - pip:
   - h5pyd
   - rosely

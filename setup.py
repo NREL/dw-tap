@@ -10,12 +10,12 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     
 setup(
     name='dw-tap',
-    version='0.0.0',
+    version='0.0.1',
     description='dw-tap package',
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/NREL/dw-tap',
-    author='Dmitry Duplyakin, Sagi Zisman, Jenna Ruzekowicz, and the rest of the TAP team',
+    author='Dmitry Duplyakin, Sagi Zisman, Jenna Ruzekowicz, Caleb Phillips, and the rest of the TAP team',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha Copy',
 
