@@ -149,6 +149,119 @@ def getData(f, lat, lon, height, method='IDW',
         
     return df 
 
+def get_data_wtk_led_on_eagle(myr, 
+                             lat, lon, height, 
+                             method='IDW', 
+                             power_estimate=False,
+                             start_time_idx=None, 
+                             end_time_idx=None, 
+                             time_stride=None): 
+    """
+    Horizontally and vertically interpolates wind speed, wind direction, and potentially temperature and pressure. Horizontal interpolation for wind speed and direction uses inverse distance weight. Horizontal interpolation for temperature and pressure uses nearest neighbor. Vertical interpolation uses linear method for all variables. 
+    Input: read in file, latitude, longitude, height of potential turbine/candidate turbine, horizontal interpolation method, boolean indicating whether temperature and pressure data will be needed for power estimate. 
+    Output: (1) If power_estimate is true, returns are wind speed, wind direction, datetime, temperature and pressure. (2) If power_estimate is false, returns are wind speed, wind direction, and datetime. All values horizontally and vertically interpolated. 
+    """
+    dt = myr.time_index
+    dt = pd.DataFrame({"datetime": dt[:]}, index=range(0,dt.shape[0]))
+    dt = dt["datetime"]
+    
+    if (start_time_idx is not None) and (end_time_idx is not None) and (time_stride is not None):
+        # All three are specified
+        dt=dt.iloc[start_time_idx:end_time_idx+1:time_stride].reset_index(drop=True)
+    else: 
+        start_time_idx = 0
+        end_time_idx = len(dt)
+        time_stride=1
+    #print("Selected time index range::\n", dt)   
+        
+    desired_point = points.XYZPoint(lat, lon, height, 'desired')    
+        
+    dd, ii = myr.tree.query((lat, lon), 4)
+    #print("Distances and indices:\n", dd,ii) 
+    # Example output: [0.01282314 0.0143017  0.01750789 0.01969273] [2663301 2665250 2663302 2665251]
+    # Note that ii indices aren't contiguous
+    
+    # Fetching wind speed
+    selected_ds = "windspeed_40m"
+    ws1 = pd.DataFrame(index = dt.index)
+    for idx in range(len(ii)):
+        one_series = myr[selected_ds, start_time_idx:end_time_idx+1:time_stride, ii[idx]]
+        ws1[str(idx+1)] = one_series
+    #print(ws1)
+    
+    selected_ds = "windspeed_60m"
+    ws2 = pd.DataFrame(index = dt.index)
+    for idx in range(len(ii)):
+        one_series = myr[selected_ds, start_time_idx:end_time_idx+1:time_stride, ii[idx]]
+        ws2[str(idx+1)] = one_series
+    #print(ws2)
+    
+    # Fetching wind direction
+    selected_ds = "winddirection_40m"
+    wd1 = pd.DataFrame(index = dt.index)
+    for idx in range(len(ii)):
+        one_series = myr[selected_ds, start_time_idx:end_time_idx+1:time_stride, ii[idx]]
+        wd1[str(idx+1)] = one_series
+    #print(wd1)
+    
+    selected_ds = "winddirection_60m"
+    wd2 = pd.DataFrame(index = dt.index)
+    for idx in range(len(ii)):
+        one_series = myr[selected_ds, start_time_idx:end_time_idx+1:time_stride, ii[idx]]
+        wd2[str(idx+1)] = one_series
+    #print(wd2)
+    
+    #Spatial for vectors (horizontal and vertical)
+    dist = dd
+    
+    #U vector
+    wd1 = wd1.apply(transformation._convert_to_met_deg, args=(), axis = 1)
+    wd2 = wd2.apply(transformation._convert_to_met_deg, args=(), axis = 1)
+    
+    u, u1 = transformation._convert_to_vector_u(wd1, wd2, ws1, ws2)
+    
+    #u["spatially_interpolated"] = u.apply(_interpolate_spatially_row, 
+    #                                      args=(dist, grid_points, x, y, method), axis=1)
+    # 
+    # 'IDW' doesn't use gridpoints - going for a quick implementation for IDW only; x and y aren't needed either
+    u["spatially_interpolated"] = u.apply(_interpolate_spatially_row, 
+                                          args=(dist, [], [], [], 'IDW'), axis=1)
+    
+    u1["spatially_interpolated"] = u1.apply(_interpolate_spatially_row, 
+                                           args=(dist, [], [], [], 'IDW'), axis=1)
+    u = pd.Series(u["spatially_interpolated"], name='wd')
+    u1 = pd.Series(u1["spatially_interpolated"], name='wd')
+    
+    u_final = _interpolate_vertically(lat, lon, u, u1, height, desired_point, "polynomial")
+    #print("u_final:\n", u_final)
+    
+    v, v1 = transformation._convert_to_vector_v(wd1, wd2, ws1, ws2)
+    v["spatially_interpolated"] = v.apply(_interpolate_spatially_row, 
+                                          args=(dist, [], [], [], 'IDW'), axis=1)
+    v1["spatially_interpolated"] = v1.apply(_interpolate_spatially_row, 
+                                            args=(dist, [], [], [], 'IDW'), axis=1)
+    v = pd.Series(v["spatially_interpolated"], name='wd')
+    v1 = pd.Series(v1["spatially_interpolated"], name='wd')
+    v_final = _interpolate_vertically(lat, lon, v, v1, height, desired_point, "polynomial")
+    #print("v_final:\n", v_final)
+    
+    ws_result = transformation._convert_to_ws(v_final, u_final) 
+    wd_result = transformation._convert_to_degrees(v_final, u_final)
+    #print("ws_result:\n", ws_result)
+    #print("wd_result:\n", wd_result)
+    
+    wd_result = wd_result.apply(transformation._convert_to_math_deg, args=())
+    
+    dt.name = "datetime"
+    df = pd.DataFrame(dt)
+    df["ws"] = ws_result
+    df["wd"] = wd_result
+    
+    if power_estimate == True: 
+         print("Warning: WTK-LED does not include pressure and temperature timeseries. Power estimation is currently unavailable.")
+    
+    return df 
+
 def _getDateTime(f):
     """ Retrieves and parses date and time from data returning dt["datetime"] """
     dt = f["datetime"]
@@ -255,3 +368,4 @@ def _interpolate_vertically(lat, lon, wind_below, wind_above, height, desired_po
 
     interpolated = vi._model_transformed[0]._xyz_points._time_series[0]._timeseries
     return interpolated
+
