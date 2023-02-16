@@ -1,0 +1,21 @@
+{
+"type": "FeatureCollection",
+"features": [
+{ "type": "Feature", "properties": { "obstacleRel": "outside" }, "geometry": { "type": "Point", "coordinates": [ -89.403420605190433, 39.326895401745261 ] } },
+{ "type": "Feature", "properties": { "obstacleRel": "outside" }, "geometry": { "type": "Point", "coordinates": [ -89.402519704289531, 39.326895401745261 ] } },
+{ "type": "Feature", "properties": { "obstacleRel": "outside" }, "geometry": { "type": "Point", "coordinates": [ -89.401618803388644, 39.326895401745261 ] } },
+{ "type": "Feature", "properties": { "obstacleRel": "outside" }, "geometry": { "type": "Point", "coordinates": [ -89.400717902487742, 39.326895401745261 ] } },
+{ "type": "Feature", "properties": { "obstacleRel": "outside" }, "geometry": { "type": "Point", "coordinates": [ -89.403420605190433, 39.327796302646163 ] } },
+{ "type": "Feature", "properties": { "obstacleRel": "outside" }, "geometry": { "type": "Point", "coordinates": [ -89.402519704289531, 39.327796302646163 ] } },
+{ "type": "Feature", "properties": { "obstacleRel": "outside" }, "geometry": { "type": "Point", "coordinates": [ -89.401618803388644, 39.327796302646163 ] } },
+{ "type": "Feature", "properties": { "obstacleRel": "outside" }, "geometry": { "type": "Point", "coordinates": [ -89.400717902487742, 39.327796302646163 ] } },
+{ "type": "Feature", "properties": { "obstacleRel": "outside" }, "geometry": { "type": "Point", "coordinates": [ -89.403420605190433, 39.328697203547065 ] } },
+{ "type": "Feature", "properties": { "obstacleRel": "outside" }, "geometry": { "type": "Point", "coordinates": [ -89.402519704289531, 39.328697203547065 ] } },
+{ "type": "Feature", "properties": { "obstacleRel": "outside" }, "geometry": { "type": "Point", "coordinates": [ -89.401618803388644, 39.328697203547065 ] } },
+{ "type": "Feature", "properties": { "obstacleRel": "outside" }, "geometry": { "type": "Point", "coordinates": [ -89.400717902487742, 39.328697203547065 ] } },
+{ "type": "Feature", "properties": { "obstacleRel": "outside" }, "geometry": { "type": "Point", "coordinates": [ -89.403420605190433, 39.329598104447967 ] } },
+{ "type": "Feature", "properties": { "obstacleRel": "outside" }, "geometry": { "type": "Point", "coordinates": [ -89.402519704289531, 39.329598104447967 ] } },
+{ "type": "Feature", "properties": { "obstacleRel": "outside" }, "geometry": { "type": "Point", "coordinates": [ -89.401618803388644, 39.329598104447967 ] } },
+{ "type": "Feature", "properties": { "obstacleRel": "outside" }, "geometry": { "type": "Point", "coordinates": [ -89.400717902487742, 39.329598104447967 ] } }
+]
+}
