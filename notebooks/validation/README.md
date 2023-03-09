@@ -2,9 +2,13 @@
 
 The imagined process is as follows:
 
-1. acqiure and prepare data (Jenna)
-   - Bias Correction incorporated
-2. run models with and without Bias Correction (Dmitry)
+1. acqiure and prepare data observation and wind toolkit data (Jenna)
+
+   Note that Bergey data is production/power data and must be converted to windspeed
+
+2. calculate bias correction parameters - linear fit (Caleb)
+
+3. run models with and without Bias Correction (Dmitry)
   LOMS:
    - LANL (Dmitry)
    - ANL (Jenna)
@@ -18,7 +22,7 @@ The imagined process is as follows:
    - WTK with Obstacle Models
    - WTK + Bias Correction with Obstacle Models
   
-3. subtract actuals from predictions, compute metrics (Caleb)
+4. subtract actuals from predictions, compute metrics (Caleb)
  
 
 ### File formats and naming conventions
