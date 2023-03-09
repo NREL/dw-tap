@@ -4,13 +4,22 @@ The imagined process is as follows:
 
 1. acqiure and prepare data (Jenna)
    - Bias Correction incorporated
-2. run models (TBD)
-   - LANL (TBD)
+2. run models with and without Bias Correction (Dmitry)
+  LOMS:
+   - LANL (Dmitry)
    - ANL (Jenna)
    - ML? (Caleb)
    - Perrera (Caleb)
-   - No LOM 
+   - No LOM
+
+  Scenarios:
+   - WTK Only
+   - WTK + Bias Correction
+   - WTK with Obstacle Models
+   - WTK + Bias Correction with Obstacle Models
+  
 3. subtract actuals from predictions, compute metrics (Caleb)
+ 
 
 ### File formats and naming conventions
 
