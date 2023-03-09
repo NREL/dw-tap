@@ -29,7 +29,10 @@ The imagined process is as follows:
   
    - RMSE by site and 12x24
    - MAE by site and 12x24
-   - Error quantiles/distribution by site and 12x24
+   - Error quantiles/distribution by site
+   - Average annual kwh error/difference by site and distribution of years
+ 
+ 5. analysis of error vs covariates - terrain, etc. (Lindsay)
  
 
 ### File formats and naming conventions
