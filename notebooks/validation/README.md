@@ -9,6 +9,7 @@ The imagined process is as follows:
 2. calculate bias correction parameters - linear fit (Caleb)
 
 3. run models with and without Bias Correction (Dmitry)
+ 
   LOMS:
    - LANL (Dmitry)
    - ANL (Jenna)
@@ -22,7 +23,13 @@ The imagined process is as follows:
    - WTK with Obstacle Models
    - WTK + Bias Correction with Obstacle Models
   
-4. subtract actuals from predictions, compute metrics (Caleb)
+4. subtract actuals from predictions, compute metrics make plots (Caleb)
+
+  Metrics:
+  
+   - RMSE by site and 12x24
+   - MAE by site and 12x24
+   - Error quantiles/distribution by site and 12x24
  
 
 ### File formats and naming conventions
