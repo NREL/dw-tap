@@ -4,3 +4,4 @@ dist/
 dw_tap.egg-info/
 */__pycache__
 */.DS_Store
+~*
