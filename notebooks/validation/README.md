@@ -2,15 +2,38 @@
 
 The imagined process is as follows:
 
-1. acqiure and prepare data (Jenna)
-   - Bias Correction incorporated
-2. run models (TBD)
-   - LANL (TBD)
+1. acqiure and prepare data observation and wind toolkit data (Jenna)
+
+   Note that Bergey data is production/power data and must be converted to windspeed
+
+2. calculate bias correction parameters - linear fit (Caleb)
+
+3. run models with and without Bias Correction (Dmitry)
+ 
+  LOMS:
+   - LANL (Dmitry)
    - ANL (Jenna)
    - ML? (Caleb)
    - Perrera (Caleb)
-   - No LOM 
-3. subtract actuals from predictions, compute metrics (Caleb)
+   - No LOM
+
+  Scenarios:
+   - WTK Only
+   - WTK + Bias Correction
+   - WTK with Obstacle Models
+   - WTK + Bias Correction with Obstacle Models
+  
+4. subtract actuals from predictions, compute metrics make plots (Caleb)
+
+  Metrics:
+  
+   - RMSE by site and 12x24
+   - MAE by site and 12x24
+   - Error quantiles/distribution by site
+   - Average annual kwh error/difference by site and distribution of years
+ 
+ 5. analysis of error vs covariates - terrain, etc. (Lindsay)
+ 
 
 ### File formats and naming conventions
 
