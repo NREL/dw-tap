@@ -37,41 +37,13 @@ The imagined process is as follows:
 
 ### File formats and naming conventions
 
-Step 1 will read in data from various subdirectories/sources and save prepared files in this directory as a set of CSVs with the following formats. First for observation files with the following naming convection and CSV with columns:
-
-  observation_[bergey|oneenergy]_site_{x}_[h]m.csv
-  
-  datetime_yyyymmddhhmmss,windspeed_mps,winddir_deg
-  
-e.g.,
-
-  observation_bergey_site_42_30m.csv
-  
-  datetime_yyyymmddhhmmss,windspeed_mps,winddir_deg
-  20221001050505,10.3,260.1
-  ...
-  
-Next, inflow (WIND toolkit) data:
-
-  inflow_[wtk1|wtk2]_[bergey|oneenergy]_site_{x}_[h]m.csv
-  
-  datetime_yyyymmddhhmmss,windspeed_mps,winddir_deg
-
-Step 2 will read the data from step 1, run the models and produce corresponding files as output, e.g.:
-
-  anl_[bergey|oneenergy]_site_{x}_[h]m.csv
-  
-  datetime_yyyymmddhhmmss,windspeed_mps,winddir_deg
-  
-Step 3 will compute metrics and produce the summary files:
-
-  results_summary.csv
-  
-  provider,site,height_m,model,metric,value
-  
-And, hour, month, sector summaries:
-
-  results_hms_{metric}.csv
-  
-  provider,site,height_m,model,hour,month,sector_deg,value
-  
+Step 1 will read in the data from various sources and format it such that it is ready to be read into the models.
+All of the prepared data can be found in the folder: 02InputForModels
+For the Bergey Data: 
+   1) Navigate further to the Bergey folder
+   2) The Bergey Folder contains the file "BergeyIndexSites.xslx" which has site index numbers (for file reference), turbine location, latitude, longitude, and turbine height, as well as the turbine type and period of generation with availabel output data. 
+   3) The folder 02BuildingInputs contains geojson files outlining the buildings surrounding the turbine. Note: The building height for all buildings has been set to 5 meters and the building footprint has been manually drawn as of 3/9/23 by Jenna Ruzekowicz (jruzekow@nrel.gov). These geojson files will be named with "B" + [File Index].geojson where the [File Index] is the numerical value that applies to the Bergey turbine site and "B" indicates it is a Bergey site. File Index can be found in the "BergeyIndexSites.xslx" file. 
+   4) The folder 02WTKInputs will contain the WTK extracted wind speed, wind direction, temperature and pressure data for the turbine location and height. These files will be in csv format with the following column names: "timestamp" "ws", "wd", "temp", "pressure". These files will be named "B" + [File Index] +"W".csv where the [File Index] is the numerical value that applies to the Bergey turbine site and "B" indicates it is a Bergey site and "W" indicates it is WTK data. File Index can be found in the "BergeyIndexSites.xslx" file.
+   5) The folder 02MeasuredInputs will contain the measured wind speed, and wind direction. These files will be in csv format with the following column names: "ws", "wd". These files will be named "B" + [File Index] +"M".csv where the [File Index] is the numerical value that applies to the Bergey turbine site and "B" indicates it is a Bergey site and "M" indicates it is measured data. File Index can be found in the "BergeyIndexSites.xslx" file.
+   
+To run a model on a bergey site... 
