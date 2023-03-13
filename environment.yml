@@ -22,6 +22,7 @@ dependencies:
 - fiona
 - shapely
 - scipy
+- NREL-rex
 - pip:
   - h5pyd
   - rosely
