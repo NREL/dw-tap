@@ -1,0 +1,20 @@
+﻿APRS ID,Public Site Name,Internal Site Name,State,Latitude,Longitude,Hub Height (m),Turbine,Periods with Consistent Generation Data,Met Tower,Met Tower Latitude,Met Tower Longitude,Measurement Height (m)
+t007,Fremont,Fremont,MN,43.918622,-91.899498,41,Bergey Excel 10,"2012/01 - 2013/12 (outage starting mid-2013/11), 2015/01 - 2022/12",,,,
+t024,Washoe,Thomas Danzinger,NV,39.331088,-119.820234,30,Bergey Excel 10,2011/01 - 2022/12,,,,
+t028,Towamensing,Derr,PA,40.851353,-75.598395,30,Bergey Excel 10,2011/01 - 2022/12,,,,
+t034,Lycoming,Dan Poor,NY,43.524158,-76.37229,31,Bergey Excel 10,"2013/01 - 2017/12, 2019/01 - 2021/12",Oswego,43.464,-76.511,15
+t041,Rockford,Fossil Park,IA,43.047418,-92.981674,37,Bergey Excel 10,"2013/01 - 2013/12, 2015/01 - 2022/12",,,,
+t074,Alberta,Roy Amberg,MN,45.57217,-96.034237,37,Bergey Excel 10,"2013/01 - 2017/12, 2020/01 - 2022/12",,,,
+t083,Santa Ynez,Russ Waldrop,CA,34.519542,-120.081227,24,Bergey Excel 10,"2011/01 - 2015/12, 2020/01 - 2020/12",,,,
+t114,Wilmore,Clean Acres Farm,KY,37.857794,-84.712431,43,Bergey Excel 10,2011/01 - 2022/12,,,,
+t133,Rountree,Schweizer Farms,IL,39.328563,-89.40238,37,Bergey Excel 10,2011/01 - 2022/12,,,,
+t135,Rozet,Southwell,WY,44.286305,-105.335035,24,Bergey Excel 10,"2013/01 - 2013/12, 2016/01 - 2016/12",,,,
+t139,Newell,Baughman,IA,42.600528,-94.972625,31,Bergey Excel 10,2013/01 - 2018/12,,,,
+t140,Amagansett,Amagansett Fire Department,NY,40.979107,-72.136609,37,Bergey Excel 10 (repowered in 2021 to a Bergey Excel 15),2013/01 - 2016/12,Brookhaven,40.870731,-72.888835,50
+t169,Fort Wayne,Indiana Tech,IN,41.076813,-85.116974,37,Bergey Excel 10,2013/01 - 2020/12,,,,
+t170,Jackson,Jackson College,MI,42.166797,-84.403169,24,Bergey Excel 10,2013/01 - 2018/12,,,,
+t182,LaFargeville,LaFargeville Central School,NY,44.192569,-75.964895,37,Bergey Excel 10,2012/01 - 2021/12,,,,
+t183,Mattoon,Lake Land,IL,39.417489,-88.387005,27,Bergey Excel 10,2012/01 - 2014/12,,,,
+t192,Derby,Michele Judd,VT,44.987588,-72.0722,43,Bergey Excel 10,2013/01 - 2017/12,,,,
+t207,Richton  Park,Richton Park,IL,41.48359,-87.723669,37,Bergey Excel 10,2013/01 - 2013/12,,,,
+t221,Cedar Falls,University of Northern Iowa,IA,42.510051,-92.45786,30,Bergey Excel 10,2012/01 - 2019/12,,,,
