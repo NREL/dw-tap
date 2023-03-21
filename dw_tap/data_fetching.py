@@ -38,9 +38,24 @@ def getData(f, lat, lon, height, method='IDW',
            inverse_monin_obukhov_length = False, 
            start_time_idx=None, end_time_idx=None, time_stride=None): 
     """
-    Horizontally and vertically interpolates wind speed, wind direction, and potentially temperature and pressure. Horizontal interpolation for wind speed and direction uses inverse distance weight. Horizontal interpolation for temperature and pressure uses nearest neighbor. Vertical interpolation uses linear method for all variables. 
-    Input: read in file, latitude, longitude, height of potential turbine/candidate turbine, horizontal interpolation method, boolean indicating whether temperature and pressure data will be needed for power estimate. 
-    Output: (1) If power_estimate is true, returns are wind speed, wind direction, datetime, temperature and pressure. (2) If power_estimate is false, returns are wind speed, wind direction, and datetime. All values horizontally and vertically interpolated. 
+    Horizontally and vertically interpolates wind speed, wind direction, and 
+    potentially temperature and pressure. Horizontal interpolation for wind 
+    speed and direction uses inverse distance weight. 
+    
+    Horizontal interpolation for temperature and pressure uses nearest neighbor. 
+    Vertical interpolation uses linear method for all variables. 
+    
+    Input: read in file, latitude, longitude, 
+           height of potential turbine/candidate turbine, 
+           horizontal interpolation method, 
+           boolean indicating whether temperature and 
+           pressure data will be needed for power estimate. 
+    
+    Output: (1) If power_estimate is true, returns are wind speed, 
+            wind direction, datetime, temperature and pressure. 
+            (2) If power_estimate is false, returns are wind speed, 
+            wind direction, and datetime. All values horizontally 
+            and vertically interpolated. 
     """
     dt = _getDateTime(f)
     
