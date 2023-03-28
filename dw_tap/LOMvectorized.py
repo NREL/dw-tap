@@ -239,7 +239,7 @@ class regression_model(Model):
                 
                 best_valid_loss = valid_loss
 
-                self.save_weights('./checkpoints/my_checkpoint')
+                self.save_weights('./checkpoints/my_checkpoint_DI')
                 
                 stop_iter = 0
             else:
@@ -255,7 +255,7 @@ class regression_model(Model):
     def restore_model(self):
         # "/my_checkpoint" at the end of the path is working fine (unlike "/my_checkpoint.index")
         checkpoint_dir = os.path.join(os.path.dirname(sys.modules['dw_tap'].__file__),
-                                      'anl-lom-models/checkpoints/my_checkpoint')
+                                      'anl-lom-models/checkpoints/my_checkpoint_DI')
         self.load_weights(checkpoint_dir) # Load pretrained model
 
     # Do some testing
@@ -290,8 +290,15 @@ class regression_model(Model):
         # Restore from checkpoint
         #self.restore_model()
 
+        
+                
+        input_data1=np.copy(input_data)
+        input_data1[:,3]=np.abs(input_data1[:,3])
+
         # Predict for new data
-        predictions = self.call(input_data)
+        predictions = self.call(input_data1)
+        
+        # Predict for new data
         predictions = np.log(predictions)
 
         hh = self.Dz_net_0(input_data)
@@ -304,7 +311,14 @@ class regression_model(Model):
 
 
         predictions = np.nan_to_num(predictions, nan=0.)
+        predictions[np.where(input_data[:,3]>0.)]=0.0      
+        #predictions[np.where(np.sqrt(input_data[:,3]*input_data[:,3])>12.5)]=0.0
+        predictions[np.where(np.sqrt(input_data[:,5]*input_data[:,5])>4.)]=0.
+        predictions[np.where(np.sqrt(input_data[:,4,]*input_data[:,4])>4.0)]=0.
+        predictions[np.where(np.sqrt(input_data[:,3]*input_data[:,3]+input_data[:,4]*input_data[:,4])>15.5)]=0.0
         
+
+ 
         return predictions#, Dz.numpy(), Dy.numpy()
 
 @lru_cache(maxsize=None)
