@@ -383,3 +383,4 @@ def _interpolate_vertically(lat, lon, wind_below, wind_above, height, desired_po
 
     interpolated = vi._model_transformed[0]._xyz_points._time_series[0]._timeseries
     return interpolated
+

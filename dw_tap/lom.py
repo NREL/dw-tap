@@ -9,6 +9,11 @@ import time
 import pandas as pd
 import pyproj
 
+
+
+import matplotlib.pyplot as plt
+
+
 def run_lom(df, df_places, xy_turbine, z_turbine,
            check_distance=False):
     
@@ -50,6 +55,9 @@ def run_lom(df, df_places, xy_turbine, z_turbine,
     # beginning of vectorized version
     
     t0 = time.time()
+    
+    #plt.scatter(xc,yc)
+    
 
     plot_test_data = np.zeros((len(L[0])*len(L)*len(xy_turbine),6))
     wss=np.zeros(len(L[0])*len(L)*len(xy_turbine))
@@ -62,8 +70,10 @@ def run_lom(df, df_places, xy_turbine, z_turbine,
                 plot_test_data[kk,1] = W[j][k]/H[j]   #W alters with theta
                 plot_test_data[kk,2] = L[j][k]/H[j]   #L alters with theta
 
-                plot_test_data[kk,3] = abs(xyt[j][i][k,1]/H[j]) #s_turbine: alters with theta stramwise direction
+                plot_test_data[kk,3] = (xyt[j][i][k,1]/H[j]) #s_turbine: alters with theta stramwise direction
                 plot_test_data[kk,4] = (xyt[j][i][k,0])/H[j]   #w_turbine: alters with theta -spanwise direction
+                
+                #print(np.sqrt(xyt[j][i][k,1]*xyt[j][i][k,1]+xyt[j][i][k,0]*xyt[j][i][k,0])/H[j], H[j],i,j,k)
                 plot_test_data[kk,5] = z_turbine/H[j]  #z[:]: constant
                 wss[kk]=ws[k]
                 #plot_test_data[kk,6] = 0.0  #z[:]: constant
@@ -84,8 +94,8 @@ def run_lom(df, df_places, xy_turbine, z_turbine,
     fnl1=out2[:]*out2[:]
     fnl =fnl1.sum(axis=1)
 
-    upnl = ws[:]-fnl[:]
-    upl = ws[:]-fl[:]
+    upnl = ws[:]+fnl[:]
+    upl = ws[:]+fl[:]
 
     #fnlsum[i,k] =np.sqrt(np.sum(f[i,:,k]*f[i,:,k]))            
 
@@ -98,6 +108,10 @@ def run_lom(df, df_places, xy_turbine, z_turbine,
     #predictions_df['wtk'] = ws 
     
     predictions_df = pd.DataFrame({'timestamp': dates, 'ws': ws, 'ws-adjusted': upnl})    
+
+    
+    output_df = pd.DataFrame({'x': plot_test_data[:,3],  'y': plot_test_data[:,4], 'fprime': f})    
+
     
     # end of vectorized version
     
