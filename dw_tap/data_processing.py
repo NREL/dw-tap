@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import sklearn.metrics
 from scipy import interpolate
+import warnings
 
 # work with Geojson files:
 def geojson_toCoordinate(df_places, minx, maxx, miny, maxy, trees, porosity):
@@ -277,3 +278,40 @@ def wind_binning(atmospheric_df, wd_bin_width=10.0, ws_bin_width=1.0):
             
     return atmospheric_df_binned, atmospheric_bins
 
+def filter_obstacles(raw_obstacle_df, 
+                     include_trees=True,
+                     min_height_thresh=1.0,
+                     turbine_height_for_checking=None):
+    """ Process obstacle data in preparation for running LOMs. """
+    
+    # Start with a copy of the given df
+    df = raw_obstacle_df.copy()
+    
+    # 3DBuildings data have only buildings records and None is listed under feature_type column
+    df["feature_type"] = df["feature_type"].map({None: "building", 
+                                                 "building": "building", # leave unchanged
+                                                 "tree": "tree"}) # leave unchanged
+     
+    # Iterate over rows and decide on the height column data for different cases
+    for idx, row in df.iterrows():
+        if row["feature_type"] == "building":
+            df.at[idx, "height"] = row["height_median"]
+        elif row["feature_type"] == "tree":
+            df.at[idx, "height"] = row["height_max"]
+        else:
+            raise ValueError('Unsupported value under feature_type. Row:\n%s' % str(row))
+            
+     # Exclude obstacles with height < min_height_thresh
+    df = df[df["height"] >= min_height_thresh].reset_index(drop=True)
+    
+    # Exclude trees if the argument calls for it
+    if not include_trees:
+        df = df[df["feature_type"] != "tree"]
+        
+    if turbine_height_for_checking:
+        if len(df[df["height"] >= turbine_height_for_checking]) > 0:
+            warnings.warn("Detected at least 1 obstacle that is as tall as the studied turbine:\n%s" % \
+                          str(df[df["height"] >= turbine_height_for_checking]))
+    
+    # Return obstacle dataframe with a subset of columns rather than all
+    return df[["height", "geometry", "feature_type"]]
