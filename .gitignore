@@ -3,5 +3,8 @@ build/
 dist/
 dw_tap.egg-info/
 */__pycache__
+notebooks/validation/__pycache__
 */.DS_Store
+.DS_Store
+notebooks/validation/.DS_Store
 ~*
