@@ -43,18 +43,20 @@ class Bergey10(object):
     max_ws = max(raw_data.ws)
     
     @classmethod
-    def windspeed_to_kw(cls, df, ws_column="ws-adjusted"):
+    def windspeed_to_kw(cls, df, ws_column="ws-adjusted",dt_column="datetime",trim=True):
         """ Converts wind speed to kw """
-        kw = cls.powercurve.intrp(df[ws_column])
-        ws = df[ws_column]
-        for i in range(len(kw)):
-            if kw.loc[i] <= 0: 
-                cls.below_curve_counter += 1
-                cls.below_curve_list.append(tuple((df["timestamp"][i], kw[i])))
-            if ws.loc[i] > cls.max_ws:
-                cls.above_curve_counter += 1
-                cls.above_curve_list.append(tuple((df["timestamp"][i], ws[i])))
-                kw.loc[i] = 0
+        # by default round down/up values below or under the range of the curve
+        if trim:
+            ws = df[ws_column].apply(lambda x: 0 if x < 0 else x).apply(lambda x: cls.max_ws if x > cls.max_ws else x)
+        else:
+            ws = df[ws_column]
+                
+        kw = cls.powercurve_intrp(ws)    
+        
+        cls.below_curve_list = df[dt_column][kw < 0]
+        cls.above_curve_list = df[dt_column][kw > cls.max_ws]
+        cls.below_curve_counter = len(cls.below_curve_list)
+        cls.above_curve_counter = len(cls.above_curve_list)
         
         return kw
     

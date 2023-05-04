@@ -19,3 +19,9 @@ class SiteIndex:
     
     def itertuples(self):
         return self.index.itertuples()
+    
+    def aid_to_tid(self,aid):
+        return self.index[self.index['AID'] == aid]['APRS ID']
+    
+    def lookup_by_tid(self,tid):
+        return self.index[self.index['APRS ID'] == tid].to_dict(orient='records').pop()
