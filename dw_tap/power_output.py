@@ -20,7 +20,7 @@ def estimate_power_output(df, temp, pres, ws_column="ws-adjusted"):
 class Bergey10(object):
     
     # Load data and minimal preprocessing
-    raw_data = pd.read_excel("../bergey/bergey_excel10_powercurve.xlsx")
+    raw_data = pd.read_excel("../../bergey/bergey_excel10_powercurve.xlsx")
     raw_data.rename(columns={"Wind Speed (m/s)": "ws", "Turbine Output": "kw"}, inplace=True)
     
     # Create vectors for interpolation

@@ -23,6 +23,8 @@ dependencies:
 - shapely
 - scipy
 - NREL-rex
+- statsmodels
+- tqdm
 - pip:
   - h5pyd
   - rosely

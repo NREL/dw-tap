@@ -35,24 +35,27 @@ def windspeed_to_power(x):
 
 #### Stats Helpers ####
 
-def performance(x,y):
-    rmse = np.sqrt(np.mean(np.power(x - y,2)))
-    mae = np.mean(np.abs(x - y))   
-    mean = np.mean(x - y)
-    return {"rmse":rmse, "mae": mae, "mean": mean}
-
-
+def error_metrics(x, y):
+    dif = x - y
+    dif = dif.dropna()
+    rmse = np.sqrt(np.nanmean(np.power(dif,2)))
+    mae = np.nanmean(np.abs(dif))   
+    mean = np.nanmean(dif)
+    median = np.median(dif)
+    Q1 = np.nanpercentile(dif, 25)
+    Q3 = np.nanpercentile(dif, 75)
+    return {"rmse":rmse, "mae": mae, "mean": mean, "median": median, "Q1":Q1, "Q3": Q3}
 
 #### Plotting Helpers ####
 
-def perf2title(x):
-    return 'RMSE: {:.02f}, MAE: {:.02f}, Mean: {:.02f}'.format(x["rmse"],x["mae"],x["mean"])
+def perf2title(x, tid):
+    return 'TID: {}, RMSE: {:.02f}, MAE: {:.02f}, Mean: {:.02f}'.format(tid, x["rmse"],x["mae"],x["mean"])
 
-def plot_scatter_and_hist(predicted,observed,predlabel="Predicted (m/s)",
+def plot_scatter_and_hist(predicted,observed, tid, predlabel="Predicted (m/s)",
                           obslabel="Observed (m/s)",axrange=[0,12]):
     fig = px.scatter(y=predicted, x=observed,
                     labels={"x":obslabel,"y":predlabel},
-                    title=perf2title(performance(predicted,observed)))
+                    title=perf2title(error_metrics(predicted,observed), tid))
     fig.update_xaxes(range=axrange)
     fig.update_yaxes(range=axrange)
     # plot must have same axis ranges or this will not be an x=y line
@@ -62,7 +65,7 @@ def plot_scatter_and_hist(predicted,observed,predlabel="Predicted (m/s)",
     
     fig = px.histogram(x=predicted-observed,
                   labels={"x":"Difference"},
-                  title=perf2title(performance(predicted,observed)))
+                  title=perf2title(error_metrics(predicted,observed), tid))
     fig.add_vline(x=0)
     fig.show()
 
@@ -82,7 +85,9 @@ def plotpolar(df,title="Average Error By Sector (m/s)",errorcol="error"):
 
 def plot1224heatmap(df,title="Average Error Irrespective of Direction (m/s)",errorcol="error"):
     tab = df[['hour','month',errorcol]].groupby(['hour','month']).mean().reset_index().pivot(index="month",columns="hour")
-    return px.imshow(tab[errorcol],labels={"x":"Hour","y":"Month"},title=title,color_continuous_scale='RdBu')
+    fig = px.imshow(tab[errorcol],labels={"x":"Hour","y":"Month"},title=title,color_continuous_scale='RdBu')
+    fig.show()
+    return tab
 
 
 

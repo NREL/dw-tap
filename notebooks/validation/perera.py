@@ -146,7 +146,7 @@ def calculate_perera_features(point,buildings):
     return ret
 
 # infinite length obstacles
-def perera(pdata,x):
+def perera(x,pdata):
     p = pdata[x[0]][int(x[1]/10.0) % 36]['pe']
     if (p is None) or (len(p) == 0):
         return x[2]
@@ -155,7 +155,7 @@ def perera(pdata,x):
     return x[2] - deficit
 
 # centered, finite length obstacles
-def perera2(pdata,x):
+def perera2(x,pdata):
     try:
         p = pdata[x[0]][int(x[1]/10.0) % 36]['pe']
         g = pdata[x[0]][int(x[1]/10.0) % 36]['gs']
@@ -169,7 +169,7 @@ def perera2(pdata,x):
     return x[2] - deficit
 
 # asymmetric finite length obstacles
-def perera3(pdata,x):
+def perera3(x,pdata):
     p = pdata[x[0]][int(x[1]/10.0) % 36]['pe']
     g = pdata[x[0]][int(x[1]/10.0) % 36]['ga']
     if (p is None) or (len(p) == 0):
