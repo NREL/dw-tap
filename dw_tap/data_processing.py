@@ -283,7 +283,8 @@ def wind_binning(atmospheric_df, wd_bin_width=10.0, ws_bin_width=1.0):
             
     return atmospheric_df_binned, atmospheric_bins
 
-def filter_obstacles(raw_obstacle_df, 
+def filter_obstacles(tid, 
+                     raw_obstacle_df, 
                      include_trees=True,
                      min_height_thresh=1.0,
                      turbine_height_for_checking=None):
@@ -315,8 +316,8 @@ def filter_obstacles(raw_obstacle_df,
         
     if turbine_height_for_checking:
         if len(df[df["height"] >= turbine_height_for_checking]) > 0:
-            warnings.warn("Detected at least 1 obstacle that is as tall as the studied turbine:\n%s" % \
-                          str(df[df["height"] >= turbine_height_for_checking]))
+            warnings.warn("(tid: %s) Detected at least 1 obstacle that is as tall as the studied turbine:\n%s" % \
+                          (tid, str(df[df["height"] >= turbine_height_for_checking][["height", "feature_type", "geometry"]])))
     
     # Return obstacle dataframe with a subset of columns rather than all
     return df[["height", "geometry", "feature_type"]]
