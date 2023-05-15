@@ -271,7 +271,12 @@ def wind_binning(atmospheric_df, wd_bin_width=10.0, ws_bin_width=1.0):
         atmospheric_bins.iloc[bin_idx] = list(idx)
         for grp_idx, row in grp.iterrows():
             atmospheric_df_binned.at[grp_idx, "bin_idx"] = bin_idx
-            
+    
+    # For bins df, use first datetime
+    atmospheric_bins["datetime"] = atmospheric_df_binned["datetime"].tolist()[0]
+    # For bins df, use average inversemoninobukhovlength_2m
+    atmospheric_bins["inversemoninobukhovlength_2m"] = atmospheric_df_binned["inversemoninobukhovlength_2m"].mean()
+        
     if atmospheric_df_binned["bin_idx"].min() < 0:
         # i.e., if there are -1 present (unmapped rows):
         raise ValueError("Possible issue with data binning: at least one row has not been mapped to bin averages")
