@@ -75,7 +75,7 @@ def wasp_geometric_factor_asymmetric(ya,yb,x,a=0.5):
     return 0.5*tanh(a*(ya/x)) + 0.5*tanh(a*(yb/x))
 
 
-def calculate_perera_features(point,buildings):
+def calculate_perera_features(point,buildings,dmax=None):
     ret = []
     for i in range(0,36):
         r = ((i*10.0 + 5.0)*2.0*np.pi)/360.0 # center of segment in radians
@@ -104,6 +104,10 @@ def calculate_perera_features(point,buildings):
                         if (dmin is None) or (d < dmin):
                             dmin = d
                             downwind_face = face
+                            
+                # skip buildings outside a given radius in meters
+                if (dmax is not None) and (dmin > dmax):
+                    continue
                 
                 # for normal perrera this is good enough, we can calculate the P_e of this building
                 # leaves p0 (porosity) at 0
