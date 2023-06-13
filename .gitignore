@@ -7,4 +7,6 @@ notebooks/validation/__pycache__
 */.DS_Store
 .DS_Store
 notebooks/validation/.DS_Store
+notebooks/validation/01\ Bergey\ Turbine\ Data/binned_wind_inputs/
+notebooks/validation/01\ Bergey\ Turbine\ Data/quic_obstacle_files/
 ~*
