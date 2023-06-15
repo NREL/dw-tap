@@ -9,4 +9,6 @@ notebooks/validation/__pycache__
 notebooks/validation/.DS_Store
 notebooks/validation/01\ Bergey\ Turbine\ Data/binned_wind_inputs/
 notebooks/validation/01\ Bergey\ Turbine\ Data/quic_obstacle_files/
+notebooks/validation/03\ Model\ Outputs/quic_raw_outputs/
+notebooks/validation/01\ Bergey\ Turbine\ Data/binned_wind_inputs_h_analysis/
 ~*
