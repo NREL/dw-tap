@@ -1,0 +1,7 @@
+.ipynb_checkpoints/
+build/
+dist/
+dw_tap.egg-info/
+*/__pycache__
+*/.DS_Store
+.DS_Store
