@@ -36,7 +36,8 @@ import dw_tap.vector.vector_transformation as transformation
 def getData(f, lat, lon, height, method='IDW', 
            power_estimate=False,
            inverse_monin_obukhov_length = False, 
-           start_time_idx=None, end_time_idx=None, time_stride=None, srw=False): 
+           start_time_idx=None, end_time_idx=None, time_stride=None, srw=False,
+           saved_dt=None): 
     """
     Horizontally and vertically interpolates wind speed, wind direction, and 
     potentially temperature and pressure. Horizontal interpolation for wind 
@@ -57,7 +58,10 @@ def getData(f, lat, lon, height, method='IDW',
             wind direction, and datetime. All values horizontally 
             and vertically interpolated. 
     """
-    dt = _getDateTime(f)
+    if type(saved_dt)==type(pd.DataFrame()) and len(saved_dt) > 0:
+        dt = saved_dt
+    else:
+        dt = _getDateTime(f)
     
     if (start_time_idx is not None) and (end_time_idx is not None) and (time_stride is not None):
         # All three are specified
