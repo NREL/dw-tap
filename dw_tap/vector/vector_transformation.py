@@ -28,13 +28,9 @@ def _convert_to_vector_u(wd, wd1, ws, ws1):
 def _convert_to_vector_v(wd, wd1, ws, ws1):
     """ Converts wind speed and directions to their v vector component """
     neg_ws = -ws 
-    #print(wd)
     temp2 = (math.pi/180) * wd
-    #print(temp2)
     temp2_1 = np.cos(temp2.iloc[:, 0].values)
-    #print(temp2_1)
     temp2_2 = np.cos(temp2.iloc[:, 1].values)
-    #print(temp2_2)
     temp2_3 = np.cos(temp2.iloc[:, 2].values)
     temp2_4 = np.cos(temp2.iloc[:, 3].values)
     df = pd.DataFrame(temp2_1, columns=['1']).join(pd.DataFrame(temp2_2, columns=['2']))

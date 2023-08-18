@@ -118,16 +118,14 @@ def getData(f, lat, lon, height, method='IDW',
     u_final = _interpolate_vertically(lat, lon, u, u1, height, desired_point, "polynomial")
 
     #V vector
-    wd = wd.apply(transformation._convert_to_met_deg, args=(), axis = 1)
-    wd1 = wd1.apply(transformation._convert_to_met_deg, args=(), axis = 1)
-    v, v1 = transformation._convert_to_vector_u(wd, wd1, ws, ws1)
+    v, v1 = transformation._convert_to_vector_v(wd, wd1, ws, ws1)
     v["spatially_interpolated"] = v.apply(_interpolate_spatially_row, args=(dist,grid_points,x,y,method), axis=1)
     v1["spatially_interpolated"] = v1.apply(_interpolate_spatially_row, args=(dist,grid_points,x,y,method), axis=1)
     v = pd.Series(v["spatially_interpolated"], name='wd')
     v1 = pd.Series(v1["spatially_interpolated"], name='wd')
     v_final = _interpolate_vertically(lat, lon, v, v1, height, desired_point, "polynomial")
     
-    ws_result = transformation._convert_to_ws(v_final, u_final) 
+    ws_result = transformation._convert_to_ws(u_final, v_final) 
     wd_result = transformation._convert_to_degrees(u_final, v_final)
     
     wd_result = wd_result.apply(transformation._convert_to_math_deg, args=())
