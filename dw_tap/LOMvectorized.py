@@ -284,6 +284,7 @@ class regression_model(Model):
 
         return None
 
+
     # Do some testing
     def make_predictions(self,input_data):
         
@@ -313,12 +314,14 @@ class regression_model(Model):
         predictions = np.nan_to_num(predictions, nan=0.)
         predictions[np.where(input_data[:,3]>0.)]=0.0      
         #predictions[np.where(np.sqrt(input_data[:,3]*input_data[:,3])>12.5)]=0.0
-        predictions[np.where(np.sqrt(input_data[:,5]*input_data[:,5])>4.)]=0.
-        predictions[np.where(np.sqrt(input_data[:,4,]*input_data[:,4])>4.0)]=0.
-        predictions[np.where(np.sqrt(input_data[:,3]*input_data[:,3]+input_data[:,4]*input_data[:,4])>15.5)]=0.0
+        #predictions[np.where(np.sqrt(input_data[:,5]*input_data[:,5])>4.)]=0.
+        #predictions[np.where(np.sqrt(input_data[:,4,]*input_data[:,4])>4.0)]=0.
+        #predictions[np.where(np.sqrt(input_data[:,3]*input_data[:,3]+input_data[:,4]*input_data[:,4])>15.5)]=0.0
         
-
- 
+        #steepness = 10.
+        #factors=(1. / (1. + tf.exp(steepness*(input_data1[:,3] - 12.5))))*(1 / (1 + tf.exp(steepness*(np.abs(input_data1[:,4]) - 4.0))))*(1 / (1 + tf.exp(steepness*(np.abs(input_data1[:,5]) - 4.0))))
+        #predictions11 = predictions*(1. / (1. + np.exp(steepness*(input_data1[:,3] - 12.5))))*(1 / (1 + np.exp(steepness*(np.abs(input_data1[:,4]) - 4.0))))*(1 / (1 + np.exp(steepness*(np.abs(input_data1[:,5]) - 4.0))))
+        #predictions1 = factors[:]*predictions[:]
         return predictions#, Dz.numpy(), Dy.numpy()
 
 @lru_cache(maxsize=None)
