@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt 
+from descartes import PolygonPatch
 
 def plot_monthly_avg(atmospheric_df, ws_column="ws", datetime_column="datetime",
                      title="Windspeed monthly averages",
@@ -77,3 +79,28 @@ def plot_monthly_avg(atmospheric_df, ws_column="ws", datetime_column="datetime",
 
     if show:
         plt.show()
+        
+        
+def plot_obs(df):
+    """ Visualize a given set of obstacles using matplotlib """
+    
+    fig = plt.figure() 
+    ax = fig.gca() 
+
+    # Add polygons (trees and buildings) one at a time
+    for idx, row in df.iterrows():
+        p = row["geometry"]
+        ft = row["feature_type"]
+        if ft == "tree":
+            # green
+            pc = "#00a36c"
+        elif ft == "building":
+            # blue
+            pc = '#6699cc'
+
+        ax.add_patch(PolygonPatch(p, fc=pc, ec="grey", alpha=1.0))
+
+    ax.axis('scaled')
+    ax.ticklabel_format(useOffset=False)
+    plt.xticks(rotation=45, ha='right')
+    plt.show()

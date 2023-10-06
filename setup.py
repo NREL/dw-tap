@@ -9,9 +9,9 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
     
 setup(
-    name='dw-tap',
-    version='0.0.1',
-    description='dw-tap package',
+    name='dw_tap',
+    version='0.2',
+    description='dw_tap package',
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/NREL/dw-tap',
