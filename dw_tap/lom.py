@@ -153,7 +153,6 @@ def run_lom(df, df_places, xy_turbine, z_turbine,
     out2=f.reshape(len(L),len(L[0])).T
 
     
-    
     #fnl=np.zeros(ws[:])
     fl =out2.sum(axis=1)
     fnl1=out2[:]*out2[:]

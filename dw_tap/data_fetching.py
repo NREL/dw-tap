@@ -86,22 +86,37 @@ def getData(f, lat, lon, height, method='IDW',
     miny = min(point_idx,key=itemgetter(1))[1] 
     maxy = max(point_idx,key=itemgetter(1))[1]
     
+    #List for wtk heights
+    wtk_heights = np.array([10, 40, 60, 80, 100, 120, 140, 160, 200])
+    if height in wtk_heights:
+        lower_height = height
+        upper_height = height
+    elif height < 40: 
+        lower_height = 40
+        upper_height = 60
+    elif height > 200:
+        lower_height = 160
+        upper_height = 200
+    else: 
+        upper_height = wtk_heights[wtk_heights > height].min()
+        lower_height = wtk_heights[wtk_heights < height].max()
+    
     #Wind Speed Fetching
-    dset = f['windspeed_40m']
+    dset = f['windspeed_%sm' % lower_height]
     ws = dset[start_time_idx:end_time_idx+1:time_stride, 
               minx:maxx+1, miny:maxy+1]
     ws = pd.DataFrame({'1': ws[:, 0, 0], '2': ws[:, 1, 0], '3': ws[:, 1, 1], '4': ws[:, 0, 1]})
-    dset = f['windspeed_60m']
+    dset = f['windspeed_%sm' % upper_height]
     ws1 = dset[start_time_idx:end_time_idx+1:time_stride,
                minx:maxx+1, miny:maxy+1]
     ws1 = pd.DataFrame({'1': ws1[:, 0, 0], '2': ws1[:, 1, 0], '3': ws1[:, 1, 1], '4': ws1[:, 0, 1]})
     
     #Wind Direction Fetching
-    dset = f['winddirection_40m']
+    dset = f['winddirection_%sm' % lower_height]
     wd = dset[start_time_idx:end_time_idx+1:time_stride,
               minx:maxx+1, miny:maxy+1]
     wd = pd.DataFrame({'1': wd[:, 0, 0], '2': wd[:, 1, 0], '3': wd[:, 1, 1], '4': wd[:, 0, 1]})
-    dset = f['winddirection_60m']
+    dset = f['winddirection_%sm' % upper_height]
     wd1 = dset[start_time_idx:end_time_idx+1:time_stride,
                minx:maxx+1, miny:maxy+1]
     wd1 = pd.DataFrame({'1': wd1[:, 0, 0], '2': wd1[:, 1, 0], '3': wd1[:, 1, 1], '4': wd1[:, 0, 1]})
@@ -118,16 +133,14 @@ def getData(f, lat, lon, height, method='IDW',
     u_final = _interpolate_vertically(lat, lon, u, u1, height, desired_point, "polynomial")
 
     #V vector
-    wd = wd.apply(transformation._convert_to_met_deg, args=(), axis = 1)
-    wd1 = wd1.apply(transformation._convert_to_met_deg, args=(), axis = 1)
-    v, v1 = transformation._convert_to_vector_u(wd, wd1, ws, ws1)
+    v, v1 = transformation._convert_to_vector_v(wd, wd1, ws, ws1)
     v["spatially_interpolated"] = v.apply(_interpolate_spatially_row, args=(dist,grid_points,x,y,method), axis=1)
     v1["spatially_interpolated"] = v1.apply(_interpolate_spatially_row, args=(dist,grid_points,x,y,method), axis=1)
     v = pd.Series(v["spatially_interpolated"], name='wd')
     v1 = pd.Series(v1["spatially_interpolated"], name='wd')
     v_final = _interpolate_vertically(lat, lon, v, v1, height, desired_point, "polynomial")
     
-    ws_result = transformation._convert_to_ws(v_final, u_final) 
+    ws_result = transformation._convert_to_ws(u_final, v_final) 
     wd_result = transformation._convert_to_degrees(u_final, v_final)
     
     wd_result = wd_result.apply(transformation._convert_to_math_deg, args=())
@@ -138,11 +151,11 @@ def getData(f, lat, lon, height, method='IDW',
     df["wd"] = wd_result
     
     if power_estimate: 
-        dtemp = f['temperature_40m']
+        dtemp = f['temperature_%sm' % lower_height]
         dtemp = dtemp[start_time_idx:end_time_idx+1:time_stride,
                       minx:maxx+1, miny:maxy+1]
         dtemp = pd.DataFrame({'1': dtemp[:,0,0], '2': dtemp[:,1,0], '3': dtemp[:,1,1], '4': dtemp[:,0,1]})
-        dtemp1 = f['temperature_60m']
+        dtemp1 = f['temperature_%sm' % upper_height]
         dtemp1 = dtemp1[start_time_idx:end_time_idx+1:time_stride,
                         minx:maxx+1, miny:maxy+1]
         dtemp1 = pd.DataFrame({'1': dtemp1[:,0,0], '2': dtemp1[:,1,0], '3': dtemp1[:,1,1], '4': dtemp1[:,0,1]})
