@@ -4,6 +4,13 @@ import h5pyd
 import geopandas as gpd
 from dw_tap.obstacles import AllObstacles
 import warnings
+import logging
+logger = logging.getLogger()
+
+# Hide all warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
 
 import sys
 sys.path.append("../scripts")
@@ -39,8 +46,7 @@ def test_check_different_obstacle_modes():
         sites = obs_subset.keys()
 
         for s in sites:
-            # Uncomment for debug messages; this can help ensure that all sites are actually getting checked
-            # warnings.warn("Checking site: %s" % s)
+            logger.info("Testing site: %s" % s)
   
             l1 = len(obs.get(t, s, "treesasbldgs"))
             l2 = len(obs.get(t, s, "treesasbldgs_100m"))
