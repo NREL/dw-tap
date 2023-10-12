@@ -295,58 +295,61 @@ def filter_obstacles(tid,
                      version=2):
     """ Process obstacle data in preparation for running LOMs. """
     
-    if version == 2:
-        # Older version, the one with medians and maximums
+#     if version == 2:
+#         # Older version, the one with medians and maximums
         
-        # Start with a copy of the given df
-        df = raw_obstacle_df.copy()
+#         # Start with a copy of the given df
+#         df = raw_obstacle_df.copy()
 
-        # 3DBuildings data have only buildings records and None is listed under feature_type column
-        df["feature_type"] = df["feature_type"].map({None: "building", 
-                                                     np.NaN: "building",
-                                                     "building": "building", # leave unchanged
-                                                     "tree": "tree"}) # leave unchanged
+#         # 3DBuildings data have only buildings records and None is listed under feature_type column
+#         df["feature_type"] = df["feature_type"].map({None: "building", 
+#                                                      np.NaN: "building",
+#                                                      "building": "building", # leave unchanged
+#                                                      "tree": "tree"}) # leave unchanged
 
-        # Iterate over rows and decide on the height column data for different cases
-        if ("height_median" in df.columns) and ("height_max" in df.columns):
-        # if height_median and height_max aren't there, this filter_obstacles() was already applied, at least once, which is acceptable 
-        # for filtering in stages
+#         # Iterate over rows and decide on the height column data for different cases
+#         if ("height_median" in df.columns) and ("height_max" in df.columns):
+#         # if height_median and height_max aren't there, this filter_obstacles() was already applied, at least once, which is acceptable 
+#         # for filtering in stages
 
-            for idx, row in df.iterrows():
-                if row["feature_type"] == "building":
-                    df.at[idx, "height"] = row["height_median"]
-                elif row["feature_type"] == "tree":
-                    df.at[idx, "height"] = row["height_max"]
-                else:
-                    raise ValueError('Unsupported value under feature_type. Row:\n%s' % str(row))
+#             for idx, row in df.iterrows():
+#                 if row["feature_type"] == "building":
+#                     df.at[idx, "height"] = row["height_median"]
+#                 elif row["feature_type"] == "tree":
+#                     df.at[idx, "height"] = row["height_max"]
+#                 else:
+#                     raise ValueError('Unsupported value under feature_type. Row:\n%s' % str(row))
 
-         # Exclude obstacles with height < min_height_thresh
-        df = df[df["height"] >= min_height_thresh].reset_index(drop=True)
+#          # Exclude obstacles with height < min_height_thresh
+#         df = df[df["height"] >= min_height_thresh].reset_index(drop=True)
 
-        # Exclude trees if the argument calls for it
-        if not include_trees:
-            df = df[df["feature_type"] != "tree"].reset_index(drop=True)
+#         # Exclude trees if the argument calls for it
+#         if not include_trees:
+#             df = df[df["feature_type"] != "tree"].reset_index(drop=True)
 
-        if turbine_height_for_checking:
-            if len(df[df["height"] >= turbine_height_for_checking]) > 0:
-                warnings.warn("(tid: %s) Detected at least 1 obstacle that is as tall as the studied turbine:\n%s" % \
-                              (tid, str(df[df["height"] >= turbine_height_for_checking][["height", "feature_type", "geometry"]])))
+#         if turbine_height_for_checking:
+#             if len(df[df["height"] >= turbine_height_for_checking]) > 0:
+#                 warnings.warn("(tid: %s) Detected at least 1 obstacle that is as tall as the studied turbine:\n%s" % \
+#                               (tid, str(df[df["height"] >= turbine_height_for_checking][["height", "feature_type", "geometry"]])))
 
-        if limit_to_radius_in_m and (limit_to_radius_in_m > 0) and (type(turbine_lat_lon) is tuple):
-            lat, lon = turbine_lat_lon
-            inProj = Proj(init='epsg:4326')
-            outProj = Proj(init='epsg:3857') # Projection with coordinates in meters
-            x,y = transform(inProj, outProj, lon, lat)
-            turbine_point = Point(x,y)
-            turbine_point_buffer = turbine_point.buffer(limit_to_radius_in_m)
+#         if limit_to_radius_in_m and (limit_to_radius_in_m > 0) and (type(turbine_lat_lon) is tuple):
+#             lat, lon = turbine_lat_lon
+#             inProj = Proj(init='epsg:4326')
+#             outProj = Proj(init='epsg:3857') # Projection with coordinates in meters
+#             x,y = transform(inProj, outProj, lon, lat)
+#             turbine_point = Point(x,y)
+#             turbine_point_buffer = turbine_point.buffer(limit_to_radius_in_m)
 
-            # Exclude obstacles that don't overlap with the buffer zone at all
-            df = df[~df.to_crs('epsg:3857').intersection(turbine_point_buffer).is_empty].reset_index(drop=True)
+#             # Exclude obstacles that don't overlap with the buffer zone at all
+#             df = df[~df.to_crs('epsg:3857').intersection(turbine_point_buffer).is_empty].reset_index(drop=True)
 
-        # Return obstacle dataframe with a subset of columns rather than all
-        return df[["height", "geometry", "feature_type"]]
+#         # Return obstacle dataframe with a subset of columns rather than all
+#         return df[["height", "geometry", "feature_type"]]
     
-    elif version == 3:
+#    elif version == 3:
+
+    if version == 3:
+        
         # Newer version, the one with gt2 (>=2m) statistics, and handing building, tree, canopy, and hedgerow feature_types
         
         # This version will use height_median_gt2 and height_percentile_95_gt2 (instead of simple median and max)

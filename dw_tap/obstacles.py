@@ -44,7 +44,7 @@ class AllObstacles(object):
                     lon = index_row["Longitude"]
 
                     obstacle_data_dir = os.path.join(self.data_dir, "01_bergey_turbine_data/3dbuildings_geojson")
-                    obstacle_data_file = "%s/%sv2.json" % (obstacle_data_dir, tid)
+                    obstacle_data_file = "%s/%sv3.json" % (obstacle_data_dir, tid)
 
                     
                     if os.path.exists(obstacle_data_file): 
@@ -55,7 +55,7 @@ class AllObstacles(object):
                                                            raw_data, 
                                                            include_trees=True, 
                                                            turbine_height_for_checking=z_turbine,
-                                                           version=2)
+                                                           version=3)
                             
                             # Same as above but limited to 100m
                             obstacle_df_100m = filter_obstacles(tid, 
@@ -64,14 +64,14 @@ class AllObstacles(object):
                                                            turbine_height_for_checking=z_turbine,
                                                            limit_to_radius_in_m=100.0,
                                                            turbine_lat_lon=(lat, lon),
-                                                           version=2)
+                                                           version=3)
                             
                         else:
                             # Don't show height warnings
                             obstacle_df = filter_obstacles(tid, 
                                                    raw_data, 
                                                    include_trees=True,
-                                                   version=2)
+                                                   version=3)
                             
                             # Same as above but limited to 100m
                             obstacle_df_100m = filter_obstacles(tid, 
@@ -79,7 +79,7 @@ class AllObstacles(object):
                                                            include_trees=True,
                                                            limit_to_radius_in_m=100.0,
                                                            turbine_lat_lon=(lat, lon),
-                                                           version=2)
+                                                           version=3)
                             
                         obstacle_df["tid"] = tid
                         bergey_obstacles[tid] = obstacle_df
