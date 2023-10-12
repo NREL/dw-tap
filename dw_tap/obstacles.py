@@ -27,7 +27,7 @@ class AllObstacles(object):
                 bergey_obstacles = {}
                 bergey_obstacles_100m = {}
             
-                index_path = os.path.join(self.data_dir, "01 Bergey Turbine Data/bergey_sites.csv")
+                index_path = os.path.join(self.data_dir, "01_bergey_turbine_data/bergey_sites.csv")
                 index = pd.read_csv(index_path)
 
                 # Get all site IDs
@@ -43,37 +43,43 @@ class AllObstacles(object):
                     lat = index_row["Latitude"]
                     lon = index_row["Longitude"]
 
-                    obstacle_data_dir = os.path.join(self.data_dir, "01 Bergey Turbine Data/3dbuildings_geojson")
+                    obstacle_data_dir = os.path.join(self.data_dir, "01_bergey_turbine_data/3dbuildings_geojson")
                     obstacle_data_file = "%s/%sv2.json" % (obstacle_data_dir, tid)
 
-                    if os.path.exists(obstacle_data_file):    
+                    
+                    if os.path.exists(obstacle_data_file): 
+                        raw_data = gpd.read_file(obstacle_data_file)
                         if debug:
                             # Show warnings if obs heght > z_turbine
                             obstacle_df = filter_obstacles(tid, 
-                                                           gpd.read_file(obstacle_data_file), 
+                                                           raw_data, 
                                                            include_trees=True, 
-                                                           turbine_height_for_checking=z_turbine)
+                                                           turbine_height_for_checking=z_turbine,
+                                                           version=2)
                             
                             # Same as above but limited to 100m
                             obstacle_df_100m = filter_obstacles(tid, 
-                                                           gpd.read_file(obstacle_data_file), 
+                                                           raw_data, 
                                                            include_trees=True, 
                                                            turbine_height_for_checking=z_turbine,
                                                            limit_to_radius_in_m=100.0,
-                                                           turbine_lat_lon=(lat, lon))
+                                                           turbine_lat_lon=(lat, lon),
+                                                           version=2)
                             
                         else:
                             # Don't show height warnings
                             obstacle_df = filter_obstacles(tid, 
-                                                   gpd.read_file(obstacle_data_file), 
-                                                   include_trees=True)
+                                                   raw_data, 
+                                                   include_trees=True,
+                                                   version=2)
                             
                             # Same as above but limited to 100m
                             obstacle_df_100m = filter_obstacles(tid, 
-                                                           gpd.read_file(obstacle_data_file), 
+                                                           raw_data, 
                                                            include_trees=True,
                                                            limit_to_radius_in_m=100.0,
-                                                           turbine_lat_lon=(lat, lon))
+                                                           turbine_lat_lon=(lat, lon),
+                                                           version=2)
                             
                         obstacle_df["tid"] = tid
                         bergey_obstacles[tid] = obstacle_df
@@ -97,7 +103,7 @@ class AllObstacles(object):
                 oneenergy_obstacles = {}
                 oneenergy_obstacles_100m = {}
                 
-                index_path = os.path.join(self.data_dir, "01 One Energy Turbine Data/OneEnergyTurbineData.csv")
+                index_path = os.path.join(self.data_dir, "01_one_energy_turbine_data/OneEnergyTurbineData.csv")
                 index = pd.read_csv(index_path)
 
                 # Select sites with lidar data
@@ -113,37 +119,46 @@ class AllObstacles(object):
                     # E.g., 'p1w1' -> 'p1'
                     site_id = tid[:2]
 
-                    obstacle_data_dir = os.path.join(self.data_dir, "01 One Energy Turbine Data/3dbuildings_geojson")
-                    obstacle_data_file = "%s/%sv2.json" % (obstacle_data_dir, site_id)
+                    obstacle_data_dir = os.path.join(self.data_dir, "01_one_energy_turbine_data/3dbuildings_geojson")
+                    
+                    #obstacle_data_file = "%s/%sv2.json" % (obstacle_data_dir, site_id)
+                    # Switched to v3 to use the latest
+                    obstacle_data_file = "%s/%sv3.json" % (obstacle_data_dir, site_id)
 
+                    
                     if os.path.exists(obstacle_data_file):
 
+                        raw_data = gpd.read_file(obstacle_data_file)
                         if debug:
                             # Show warnings if obs heght > z_turbine
                             obstacle_df = filter_obstacles(site_id,
-                                                           gpd.read_file(obstacle_data_file), 
+                                                           raw_data, 
                                                            include_trees=True, 
-                                                           turbine_height_for_checking=z_turbine)
+                                                           turbine_height_for_checking=z_turbine,
+                                                           version=3)
                             
                             # Same as above but limited to 100m
                             obstacle_df_100m = filter_obstacles(site_id,
-                                                           gpd.read_file(obstacle_data_file), 
+                                                           raw_data, 
                                                            include_trees=True, 
                                                            turbine_height_for_checking=z_turbine,
                                                            limit_to_radius_in_m=100.0,
-                                                           turbine_lat_lon=(lat, lon))
+                                                           turbine_lat_lon=(lat, lon),
+                                                           version=3)
                         else:
                             # Don't show height warnings
                             obstacle_df = filter_obstacles(site_id,
-                                                           gpd.read_file(obstacle_data_file), 
-                                                           include_trees=True)
+                                                           raw_data, 
+                                                           include_trees=True,
+                                                           version=3)
                             
                             # Same as above but limited to 100m
                             obstacle_df_100m = filter_obstacles(site_id,
-                                                           gpd.read_file(obstacle_data_file), 
+                                                           raw_data, 
                                                            include_trees=True, 
                                                            limit_to_radius_in_m=100.0,
-                                                           turbine_lat_lon=(lat, lon))
+                                                           turbine_lat_lon=(lat, lon),
+                                                           version=3)
                             
                         obstacle_df["tid"] = tid
                         obstacle_df["site_id"] = site_id

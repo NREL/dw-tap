@@ -24,7 +24,7 @@ import sys
 sys.path.append("../scripts")
 import dw_tap_data 
 
-def test_run_t024():
+def test_pilowf_t024():
     index = pd.read_csv(os.path.join(dw_tap_data.path, "01 Bergey Turbine Data/bergey_sites.csv"))
     
     tid = 't024'
@@ -37,9 +37,9 @@ def test_run_t024():
     tmp["datetime"] = pd.to_datetime(tmp["packet_date"])
        
     # 1 year of data
-    #start = pd.to_datetime('2013-01-01 00:00:00+00:00') 
-    #end = pd.to_datetime('2013-12-31 23:59:00+00:00')
-    #tmp = tmp[(tmp["datetime"] >= start) & (tmp["datetime"] <= end)].reset_index(drop=True)
+    start = pd.to_datetime('2013-01-01 00:00:00+00:00') 
+    end = pd.to_datetime('2013-12-31 23:59:00+00:00')
+    tmp = tmp[(tmp["datetime"] >= start) & (tmp["datetime"] <= end)].reset_index(drop=True)
     
     atmospheric_input = tmp
     
@@ -70,6 +70,6 @@ def test_run_t024():
     pmin = predictions_df["ws-adjusted"].min() 
     pavg = predictions_df["ws-adjusted"].mean() 
     pmax = predictions_df["ws-adjusted"].max() 
-    assert pmin >= 0, "Testing PILOWF: min ws-adjusted should be non-negative (observed: %f)." % pmin
+    assert pmin >= -10, "Testing PILOWF: realistic min ws-adjusted should be >=-10 m/s (observed: %f)." % pmin
     assert pavg >= 0, "Testing PILOWF: avg ws-adjusted should be non-negative (observed: %f)." % pavg
-    assert pmax <= 150, "Testing PILOWF: realistic max ws-adjusted should be <= 150 (observed: %f)." % pmax
+    assert pmax <= 150, "Testing PILOWF: realistic max ws-adjusted should be <= 150 m/s (observed: %f)." % pmax

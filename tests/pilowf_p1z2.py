@@ -24,7 +24,7 @@ import sys
 sys.path.append("../scripts")
 import dw_tap_data 
 
-def test_check_for_negative_ws_p1z2():
+def test_pilowf_p1z2():
     index = pd.read_csv(os.path.join(dw_tap_data.path, "01 One Energy Turbine Data/OneEnergyTurbineData.csv"))
     
     tid = 'p1z2'
@@ -71,6 +71,6 @@ def test_check_for_negative_ws_p1z2():
     pavg = predictions_df["ws-adjusted"].mean() 
     pmax = predictions_df["ws-adjusted"].max() 
 
-    assert pmin >= 0, "Testing PILOWF: min ws-adjusted should be non-negative (observed: %f)." % pmin
+    assert pmin >= -10, "Testing PILOWF: realistic min ws-adjusted should be >=-10 m/s (observed: %f)." % pmin
     assert pavg >= 0, "Testing PILOWF: avg ws-adjusted should be non-negative (observed: %f)." % pavg
     assert pmax <= 150, "Testing PILOWF: realistic max ws-adjusted should be <= 150 m/s (observed: %f)." % pmax

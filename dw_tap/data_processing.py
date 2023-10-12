@@ -291,53 +291,124 @@ def filter_obstacles(tid,
                      min_height_thresh=1.0,
                      turbine_height_for_checking=None,
                      limit_to_radius_in_m=False,
-                     turbine_lat_lon=None):
+                     turbine_lat_lon=None,
+                     version=2):
     """ Process obstacle data in preparation for running LOMs. """
     
-    # Start with a copy of the given df
-    df = raw_obstacle_df.copy()
-    
-    # 3DBuildings data have only buildings records and None is listed under feature_type column
-    df["feature_type"] = df["feature_type"].map({None: "building", 
-                                                 np.NaN: "building",
-                                                 "building": "building", # leave unchanged
-                                                 "tree": "tree"}) # leave unchanged
-     
-    # Iterate over rows and decide on the height column data for different cases
-    if ("height_median" in df.columns) and ("height_max" in df.columns):
-    # if height_median and height_max aren't there, this filter_obstacles() was already applied, at least once, which is acceptable 
-    # for filtering in stages
-    
-        for idx, row in df.iterrows():
-            if row["feature_type"] == "building":
-                df.at[idx, "height"] = row["height_median"]
-            elif row["feature_type"] == "tree":
-                df.at[idx, "height"] = row["height_max"]
-            else:
-                raise ValueError('Unsupported value under feature_type. Row:\n%s' % str(row))
-            
-     # Exclude obstacles with height < min_height_thresh
-    df = df[df["height"] >= min_height_thresh].reset_index(drop=True)
-    
-    # Exclude trees if the argument calls for it
-    if not include_trees:
-        df = df[df["feature_type"] != "tree"].reset_index(drop=True)
+    if version == 2:
+        # Older version, the one with medians and maximums
         
-    if turbine_height_for_checking:
-        if len(df[df["height"] >= turbine_height_for_checking]) > 0:
-            warnings.warn("(tid: %s) Detected at least 1 obstacle that is as tall as the studied turbine:\n%s" % \
-                          (tid, str(df[df["height"] >= turbine_height_for_checking][["height", "feature_type", "geometry"]])))
+        # Start with a copy of the given df
+        df = raw_obstacle_df.copy()
+
+        # 3DBuildings data have only buildings records and None is listed under feature_type column
+        df["feature_type"] = df["feature_type"].map({None: "building", 
+                                                     np.NaN: "building",
+                                                     "building": "building", # leave unchanged
+                                                     "tree": "tree"}) # leave unchanged
+
+        # Iterate over rows and decide on the height column data for different cases
+        if ("height_median" in df.columns) and ("height_max" in df.columns):
+        # if height_median and height_max aren't there, this filter_obstacles() was already applied, at least once, which is acceptable 
+        # for filtering in stages
+
+            for idx, row in df.iterrows():
+                if row["feature_type"] == "building":
+                    df.at[idx, "height"] = row["height_median"]
+                elif row["feature_type"] == "tree":
+                    df.at[idx, "height"] = row["height_max"]
+                else:
+                    raise ValueError('Unsupported value under feature_type. Row:\n%s' % str(row))
+
+         # Exclude obstacles with height < min_height_thresh
+        df = df[df["height"] >= min_height_thresh].reset_index(drop=True)
+
+        # Exclude trees if the argument calls for it
+        if not include_trees:
+            df = df[df["feature_type"] != "tree"].reset_index(drop=True)
+
+        if turbine_height_for_checking:
+            if len(df[df["height"] >= turbine_height_for_checking]) > 0:
+                warnings.warn("(tid: %s) Detected at least 1 obstacle that is as tall as the studied turbine:\n%s" % \
+                              (tid, str(df[df["height"] >= turbine_height_for_checking][["height", "feature_type", "geometry"]])))
+
+        if limit_to_radius_in_m and (limit_to_radius_in_m > 0) and (type(turbine_lat_lon) is tuple):
+            lat, lon = turbine_lat_lon
+            inProj = Proj(init='epsg:4326')
+            outProj = Proj(init='epsg:3857') # Projection with coordinates in meters
+            x,y = transform(inProj, outProj, lon, lat)
+            turbine_point = Point(x,y)
+            turbine_point_buffer = turbine_point.buffer(limit_to_radius_in_m)
+
+            # Exclude obstacles that don't overlap with the buffer zone at all
+            df = df[~df.to_crs('epsg:3857').intersection(turbine_point_buffer).is_empty].reset_index(drop=True)
+
+        # Return obstacle dataframe with a subset of columns rather than all
+        return df[["height", "geometry", "feature_type"]]
     
-    if limit_to_radius_in_m and (limit_to_radius_in_m > 0) and (type(turbine_lat_lon) is tuple):
-        lat, lon = turbine_lat_lon
-        inProj = Proj(init='epsg:4326')
-        outProj = Proj(init='epsg:3857') # Projection with coordinates in meters
-        x,y = transform(inProj, outProj, lon, lat)
-        turbine_point = Point(x,y)
-        turbine_point_buffer = turbine_point.buffer(limit_to_radius_in_m)
+    elif version == 3:
+        # Newer version, the one with gt2 (>=2m) statistics, and handing building, tree, canopy, and hedgerow feature_types
         
-        # Exclude obstacles that don't overlap with the buffer zone at all
-        df = df[~df.to_crs('epsg:3857').intersection(turbine_point_buffer).is_empty].reset_index(drop=True)
+        # This version will use height_median_gt2 and height_percentile_95_gt2 (instead of simple median and max)
         
-    # Return obstacle dataframe with a subset of columns rather than all
-    return df[["height", "geometry", "feature_type"]]
+        # Start with a copy of the given df
+        df = raw_obstacle_df.copy()
+        
+        # Make a copy of a column to preserve the original feature_type
+        df["feature_type_raw"] = df["feature_type"]
+        
+        # Initial feature_type mapping; 3DBuildings data have only buildings records and None is listed under feature_type column;
+        df["feature_type"] = df["feature_type"].apply(lambda x: "building" if not x else x) # replace x if x is None or np.NaN
+
+        # Iterate over rows and decide on the height column data for different cases
+        if ("height_median_gt2" in df.columns) and ("height_percentile_95_gt2" in df.columns):
+        # if height_median_gt2 and height_percentile_95_gt2 aren't there, this filter_obstacles() was already applied, at least once, which is acceptable 
+        # for filtering in stages
+
+            for idx, row in df.iterrows():
+                if row["feature_type"] == "building":
+                    df.at[idx, "height"] = row["height_median_gt2"]
+                elif row["feature_type"] == "canopy":
+                    df.at[idx, "height"] = row["height_median_gt2"]
+                elif row["feature_type"] == "hedgerow":
+                    df.at[idx, "height"] = row["height_median_gt2"]
+                elif row["feature_type"] == "tree":
+                    df.at[idx, "height"] = row["height_percentile_95_gt2"]
+                else:
+                    raise ValueError('Unsupported value under feature_type. Row:\n%s' % str(row))
+                    
+        # Additional feature_type mapping
+        df["feature_type"] = df["feature_type"].map({"building": "building", 
+                                                     "tree": "tree",
+                                                     "canopy": "tree",
+                                                     "hedgerow": "tree"}) 
+
+         # Exclude obstacles with height < min_height_thresh
+        df = df[df["height"] >= min_height_thresh].reset_index(drop=True)
+
+        # Exclude trees if the argument calls for it
+        if not include_trees:
+            df = df[df["feature_type"] != "tree"].reset_index(drop=True)
+
+        if turbine_height_for_checking:
+            if len(df[df["height"] >= turbine_height_for_checking]) > 0:
+                warnings.warn("(tid: %s) Detected at least 1 obstacle that is as tall as the studied turbine:\n%s" % \
+                              (tid, str(df[df["height"] >= turbine_height_for_checking][["height", "feature_type", "geometry"]])))
+
+        if limit_to_radius_in_m and (limit_to_radius_in_m > 0) and (type(turbine_lat_lon) is tuple):
+            lat, lon = turbine_lat_lon
+            inProj = Proj(init='epsg:4326')
+            outProj = Proj(init='epsg:3857') # Projection with coordinates in meters
+            x,y = transform(inProj, outProj, lon, lat)
+            turbine_point = Point(x,y)
+            turbine_point_buffer = turbine_point.buffer(limit_to_radius_in_m)
+
+            # Exclude obstacles that don't overlap with the buffer zone at all
+            df = df[~df.to_crs('epsg:3857').intersection(turbine_point_buffer).is_empty].reset_index(drop=True)
+
+        # Return obstacle dataframe with a subset of columns rather than all
+        return df[["height", "geometry", "feature_type", "feature_type_raw"]]
+
+    else:
+        raise ValueError("Specified version is unsupported.")
+    
