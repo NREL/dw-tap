@@ -12,8 +12,8 @@ import subprocess
 import shutil
 from dw_tap.obstacles import AllObstacles
 from dw_tap.lom import run_lom
-import time
 import warnings
+import time
 import logging
 logger = logging.getLogger()
 
@@ -24,49 +24,55 @@ import sys
 sys.path.append("../scripts")
 import dw_tap_data 
 
-def test_pilowf_p1z2():
-    index = pd.read_csv(os.path.join(dw_tap_data.path, "notebook_data/01_one_energy_turbine_data/OneEnergyTurbineData.csv"))
+def test_pilowf_t207():
+    index = pd.read_csv(os.path.join(dw_tap_data.path, "notebook_data", "01_bergey_turbine_data/bergey_sites.csv"))
     
-    tid = 'p1z2'
-    #wind_source = "wtk_led_2018"
-    obstacle_mode = "treesasbldgs_100m"
+    tid = 't207'
+    obstacle_mode = "treesasbldgs"
+    
+    wtk = pd.read_csv(os.path.join(dw_tap_data.path, "notebook_data", "01_bergey_turbine_data/wtk_tp.csv.bz2"))
 
-    pid = tid[:2]
     row = index[index["APRS ID"] == tid].iloc[0]
     lat = row["Latitude"]
     lon = row["Longitude"]
     z_turbine = row["Hub Height (m)"]
     xy_turbine = [np.array([lon, lat])]
     
-    # Prepare a small wind input for this case
-    
-    start = pd.to_datetime('2018-04-25 06:30:00+00:00') 
-    end = pd.to_datetime('2018-04-25 08:55:00+00:00')
-    
-    wtk_led_2018 = pd.read_csv(os.path.join(dw_tap_data.path, "notebook_data/01_one_energy_turbine_data/wtk_led_2018.csv.bz2"))
-    
-    tmp = wtk_led_2018[wtk_led_2018["tid"] == tid].copy().reset_index(drop=True)
+    tmp = wtk[wtk["tid"] == tid].copy().reset_index(drop=True)
     tmp["datetime"] = pd.to_datetime(tmp["packet_date"])
+       
+    # 1 year of data
+    start = pd.to_datetime('2013-01-01 00:00:00+00:00') 
+    end = pd.to_datetime('2013-12-31 23:59:00+00:00')
     tmp = tmp[(tmp["datetime"] >= start) & (tmp["datetime"] <= end)].reset_index(drop=True)
     
     atmospheric_input = tmp
     
     # Prepare obstacles input
     
-    obs = AllObstacles(data_dir=os.path.join(dw_tap_data.path, "notebook_data"), types=["oneenergy"], debug=False)
-    obs_subset = obs.get("oneenergy", tid, obstacle_mode)
+    obs = AllObstacles(data_dir=os.path.join(dw_tap_data.path, "notebook_data"), types=["bergey"], debug=False)
+    obs_subset = obs.get("bergey", tid, obstacle_mode)
     logger.info("Fetched obstacles. Total # of obstacles: %.d" % len(obs_subset))
-    
+   
+    # Filter out everything that is outside the 400-m radius 
+    obs_subset = filter_obstacles(tid, 
+                                  obs_subset, 
+                                  include_trees=True, 
+                                  limit_to_radius_in_m=400.0,
+                                  turbine_lat_lon=(lat, lon),
+                                  version=3)
+    logger.info("Done with 400-m filtering. # of remaining obstacles: %.d" % len(obs_subset))
+
     # Run ANL's LOM
-    t_lom_start = time.time() 
+    t_lom_start = time.time()
     predictions_df = run_lom(atmospheric_input, obs_subset, xy_turbine, z_turbine, check_distance=True)
     t_lom = time.time() - t_lom_start    
-    logger.info("Reporting the runtime for PILOWF: %.3f (s)" % t_lom) 
-
+    logger.info("Reporting the runtime for PILOWF: %.3f (s)" % t_lom)
+  
     pmin = predictions_df["ws-adjusted"].min() 
     pavg = predictions_df["ws-adjusted"].mean() 
     pmax = predictions_df["ws-adjusted"].max() 
-
+    
     logger.info("PILOWF's ws-adjusted, average (%d timesteps): %.3f" % (len(predictions_df), pavg))
 
     assert pmin >= -10, "Testing PILOWF: realistic min ws-adjusted should be >=-10 m/s (observed: %f)." % pmin
