@@ -16,4 +16,9 @@ Activate the appropriate environment and execute the following command from this
 
 ```
 export PYTHONWARNINGS="ignore" && pytest --log-cli-level=INFO tests/
+
+```
+To run a single test, run for example:
+```
+export PYTHONWARNINGS="ignore" && pytest --log-cli-level=INFO tests/pilowf_t024.py
 ```

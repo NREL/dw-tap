@@ -3,6 +3,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from scipy.interpolate import interp1d
+import os
 
 def estimate_power_output(df, temp, pres, ws_column="ws-adjusted"): 
     """
@@ -20,10 +21,11 @@ def estimate_power_output(df, temp, pres, ws_column="ws-adjusted"):
     below_curve_list = PowerCurve.below_curve_list
     return kw, above_curve_counter, below_curve_counter, above_curve_list, below_curve_list
 
-class PowerCurve(object):
+class PowerCurve(object, power_curve_path):
     
     # Load data and minimal preprocessing
-    raw_data = pd.read_excel("../powercurves/bergey_excel10_powercurve.xlsx")
+   
+    raw_data = pd.read_excel(power_curve_path)
     raw_data.rename(columns={"Wind Speed (m/s)": "ws", "Turbine Output": "kw"}, inplace=True)
     
     # Create vectors for interpolation
