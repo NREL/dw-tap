@@ -400,14 +400,18 @@ def filter_obstacles(tid,
 
         if limit_to_radius_in_m and (limit_to_radius_in_m > 0) and (type(turbine_lat_lon) is tuple):
             lat, lon = turbine_lat_lon
+            
             inProj = Proj(init='epsg:4326')
-            outProj = Proj(init='epsg:3857') # Projection with coordinates in meters
+            #outProj = Proj(init='epsg:3857') # Projection with coordinates in meters
+            outProj = Proj(init='epsg:3740') # Projection with coordinates in meters; updated to: 3740
+            
             x,y = transform(inProj, outProj, lon, lat)
             turbine_point = Point(x,y)
             turbine_point_buffer = turbine_point.buffer(limit_to_radius_in_m)
 
             # Exclude obstacles that don't overlap with the buffer zone at all
-            df = df[~df.to_crs('epsg:3857').intersection(turbine_point_buffer).is_empty].reset_index(drop=True)
+            #df = df[~df.to_crs('epsg:3857').intersection(turbine_point_buffer).is_empty].reset_index(drop=True)
+            df = df[~df.to_crs('epsg:3740').intersection(turbine_point_buffer).is_empty].reset_index(drop=True) # updated to: 3740
 
         # Return obstacle dataframe with a subset of columns rather than all
         return df[["height", "geometry", "feature_type", "feature_type_raw"]]
