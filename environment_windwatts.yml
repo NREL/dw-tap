@@ -1,29 +1,27 @@
 name: windwatts
 channels:
-- defaults
 - conda-forge
 dependencies:
 - python=3.11
+- fiona
+- tensorflow-base
 - jupyterlab
-- pip
 - pandas
-- geopandas
+- geopandas-base
 - pyproj
 - numpy
 - matplotlib
 - seaborn
 - scikit-learn
-- tensorflow
 - openpyxl
 - windrose
 - plotly
 - pydeck
 - tqdm
-- fiona
 - shapely
 - scipy
 - statsmodels
-- tqdm
+- pip
 - pip:
   - h5pyd
   - rosely
