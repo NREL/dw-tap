@@ -54,7 +54,7 @@ def _convert_to_degrees(u, v):
     return result
 
 def _convert_to_met_deg(row):
-    """ Converts mathatical degrees to met degrees """
+    """ Converts mathematical degrees to met degrees """
     for idx in range(len(row.values)):
         if row.values[idx] == 0: row.values[idx] = 90
         elif row.values[idx] == 90: row.values[idx] = 0

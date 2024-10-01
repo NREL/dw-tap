@@ -33,15 +33,22 @@ import dw_tap.interpolation.timeseries as timeseries
 import dw_tap.interpolation.interpolation as interpolation
 import dw_tap.vector.vector_transformation as transformation
 
-def getData(f, lat, lon, height, method='IDW', 
-           power_estimate=False,
-           inverse_monin_obukhov_length = False, 
-           start_time_idx=None, end_time_idx=None, time_stride=None, srw=False,
-           saved_dt=None): 
+def getData(f, lat, lon, height, 
+            method='IDW', 
+            power_estimate=False,
+            inverse_monin_obukhov_length = False,
+            start_time_idx=None, end_time_idx=None, time_stride=None, 
+            srw=False,
+            saved_dt=None,
+            interpolate=True
+           ): 
     """
     Horizontally and vertically interpolates wind speed, wind direction, and 
     potentially temperature and pressure. Horizontal interpolation for wind 
-    speed and direction uses inverse distance weight. 
+    speed and direction uses inverse distance weight by default. To remove 
+    interpolation, set method='nearest'. This is computationally wasteful at
+    the moment, because we are still getting data for all four grid points, rather
+    than getting only the data for the nearest grid point.
     
     Horizontal interpolation for temperature and pressure uses nearest neighbor. 
     Vertical interpolation uses linear method for all variables. 
@@ -57,12 +64,16 @@ def getData(f, lat, lon, height, method='IDW',
             (2) If power_estimate is false, returns are wind speed, 
             wind direction, and datetime. All values horizontally 
             and vertically interpolated. 
+
     """
+    # Get the datettimes available in the file
     if type(saved_dt)==type(pd.DataFrame()) and len(saved_dt) > 0:
         dt = saved_dt
     else:
         dt = _getDateTime(f)
+
     
+    # Determine the model data to retrieve based on input parameters
     if (start_time_idx is not None) and (end_time_idx is not None) and (time_stride is not None):
         # All three are specified
         dt=dt.iloc[start_time_idx:end_time_idx+1:time_stride].reset_index(drop=True)
@@ -73,76 +84,116 @@ def getData(f, lat, lon, height, method='IDW',
         
     point_lat_lon = (lat, lon)
     
-    #grid_points will either be the wtk grid points, or they will be -1
+    # grid_points will either be the wtk grid points, or they will be -1
+    # point_idx: List of grid index tuples for WTK bounding box starting from bottom left and moving clockwise. 
+    # dist: List of distances from point to each bounding box corner, ordered from bottom left corner moving clockwise. 
+    # grid_points: List of meters coordinates of the box starting from bottom left and moving clockwise. 
+    # x, y: Meter projection of longitude. Meter projection of latitude. 
     point_idx, dist, grid_points, x, y = _indicesForCoord(f, point_lat_lon[0], point_lat_lon[1])
-    
-    #if they are -1, it means the lat, lon request was not valid (out of bounds)
-    if grid_points == [-1, -1, -1, -1]:
-        return pd.DataFrame()
-    
-    desired_point = points.XYZPoint(lat, lon, height, 'desired')
-    minx = min(point_idx,key=itemgetter(0))[0]
-    maxx = max(point_idx,key=itemgetter(0))[0]
-    miny = min(point_idx,key=itemgetter(1))[1] 
-    maxy = max(point_idx,key=itemgetter(1))[1]
-    
-    #List for wtk heights
+
+    # Get lower and upper heighs available in WTK data for vertical interpolation
     wtk_heights = np.array([10, 40, 60, 80, 100, 120, 140, 160, 200])
     if height in wtk_heights:
         lower_height = height
         upper_height = height
     elif height < 40: 
+        # I suppose we neglect height of 10 because it is not reliable? -KM
         lower_height = 40
         upper_height = 60
     elif height > 200:
         lower_height = 160
         upper_height = 200
     else: 
-        upper_height = wtk_heights[wtk_heights > height].min()
         lower_height = wtk_heights[wtk_heights < height].max()
+        upper_height = wtk_heights[wtk_heights > height].min()
+        
+    #if they are -1, it means the lat, lon request was not valid (out of bounds)
+    if grid_points == [-1, -1, -1, -1]:
+        return pd.DataFrame()
     
-    #Wind Speed Fetching
-    dset = f['windspeed_%sm' % lower_height]
-    ws = dset[start_time_idx:end_time_idx+1:time_stride, 
-              minx:maxx+1, miny:maxy+1]
-    ws = pd.DataFrame({'1': ws[:, 0, 0], '2': ws[:, 1, 0], '3': ws[:, 1, 1], '4': ws[:, 0, 1]})
-    dset = f['windspeed_%sm' % upper_height]
-    ws1 = dset[start_time_idx:end_time_idx+1:time_stride,
-               minx:maxx+1, miny:maxy+1]
-    ws1 = pd.DataFrame({'1': ws1[:, 0, 0], '2': ws1[:, 1, 0], '3': ws1[:, 1, 1], '4': ws1[:, 0, 1]})
+    desired_point = points.XYZPoint(lat, lon, height, 'desired')
+    # Won't these always be the same, since we are getting point_idx
+    # from bottom-left and going around clockwise? The bottom left should
+    # always be minx and miny and the top right should always be max x and max y
+    # unless maybe the rectangle is rotated? -KM
+    minx = min(point_idx,key=itemgetter(0))[0]
+    maxx = max(point_idx,key=itemgetter(0))[0]
+    miny = min(point_idx,key=itemgetter(1))[1] 
+    maxy = max(point_idx,key=itemgetter(1))[1]
+    
+    # Wind Speed Fetching
+    ws_lower = f['windspeed_%sm' % lower_height]
+    ws_lower = ws_lower[start_time_idx:end_time_idx+1:time_stride, minx:maxx+1, miny:maxy+1]
+    ws_lower_df = pd.DataFrame({'1': ws_lower[:, 0, 0], 
+                               '2': ws_lower[:, 1, 0], 
+                               '3': ws_lower[:, 1, 1], 
+                               '4': ws_lower[:, 0, 1]})
+    ws_upper = f['windspeed_%sm' % upper_height]
+    ws_upper = ws_upper[start_time_idx:end_time_idx+1:time_stride, minx:maxx+1, miny:maxy+1]
+    ws_upper_df = pd.DataFrame({'1': ws_upper[:, 0, 0], 
+                                '2': ws_upper[:, 1, 0], 
+                                '3': ws_upper[:, 1, 1], 
+                                '4': ws_upper[:, 0, 1]})
     
     #Wind Direction Fetching
-    dset = f['winddirection_%sm' % lower_height]
-    wd = dset[start_time_idx:end_time_idx+1:time_stride,
-              minx:maxx+1, miny:maxy+1]
-    wd = pd.DataFrame({'1': wd[:, 0, 0], '2': wd[:, 1, 0], '3': wd[:, 1, 1], '4': wd[:, 0, 1]})
-    dset = f['winddirection_%sm' % upper_height]
-    wd1 = dset[start_time_idx:end_time_idx+1:time_stride,
-               minx:maxx+1, miny:maxy+1]
-    wd1 = pd.DataFrame({'1': wd1[:, 0, 0], '2': wd1[:, 1, 0], '3': wd1[:, 1, 1], '4': wd1[:, 0, 1]})
+    wd_lower = f['winddirection_%sm' % lower_height]
+    wd_lower = wd_lower[start_time_idx:end_time_idx+1:time_stride, minx:maxx+1, miny:maxy+1]
+    wd_lower_df = pd.DataFrame({'1': wd_lower[:, 0, 0], 
+                                '2': wd_lower[:, 1, 0], 
+                                '3': wd_lower[:, 1, 1], 
+                                '4': wd_lower[:, 0, 1]})
+    wd_upper = f['winddirection_%sm' % upper_height]
+    wd_upper = wd_upper[start_time_idx:end_time_idx+1:time_stride, minx:maxx+1, miny:maxy+1]
+    wd_upper_df = pd.DataFrame({'1': wd_upper[:, 0, 0], 
+                                '2': wd_upper[:, 1, 0], 
+                                '3': wd_upper[:, 1, 1], 
+                                '4': wd_upper[:, 0, 1]})
     
-    #Spatial for vectors (horizontal and vertical)
-    #U vector
-    wd = wd.apply(transformation._convert_to_met_deg, args=(), axis = 1)
-    wd1 = wd1.apply(transformation._convert_to_met_deg, args=(), axis = 1)
-    u, u1 = transformation._convert_to_vector_u(wd, wd1, ws, ws1)
-    u["spatially_interpolated"] = u.apply(_interpolate_spatially_row, args=(dist,grid_points,x,y,method), axis=1)
-    u1["spatially_interpolated"] = u1.apply(_interpolate_spatially_row, args=(dist,grid_points,x,y,method), axis=1)
-    u = pd.Series(u["spatially_interpolated"], name='wd')
-    u1 = pd.Series(u1["spatially_interpolated"], name='wd')
-    u_final = _interpolate_vertically(lat, lon, u, u1, height, desired_point, "polynomial")
+    # Convert wind direction mathematical degrees to met degrees
+    wd_lower_df = wd_lower_df.apply(transformation._convert_to_met_deg, 
+                                    args=(), axis=1)
+    wd_upper_df = wd_upper_df.apply(transformation._convert_to_met_deg,
+                                    args=(), axis=1)
 
-    #V vector
-    v, v1 = transformation._convert_to_vector_v(wd, wd1, ws, ws1)
-    v["spatially_interpolated"] = v.apply(_interpolate_spatially_row, args=(dist,grid_points,x,y,method), axis=1)
-    v1["spatially_interpolated"] = v1.apply(_interpolate_spatially_row, args=(dist,grid_points,x,y,method), axis=1)
-    v = pd.Series(v["spatially_interpolated"], name='wd')
-    v1 = pd.Series(v1["spatially_interpolated"], name='wd')
-    v_final = _interpolate_vertically(lat, lon, v, v1, height, desired_point, "polynomial")
-    
+    # Break down windspeed into orthogonal components for interpolation
+    # We will apply the interpolation process to the orthogonal components,
+    # then combine the results into a final, interpolated vector.
+    # Getting the 'u' wind speed vector for lower and upper heights
+    u_lower, u_upper = transformation._convert_to_vector_u(wd_lower_df, 
+                                                           wd_upper_df, 
+                                                           ws_lower_df,
+                                                           ws_upper_df)
+    u_lower["spatially_interpolated"] = u_lower.apply(_interpolate_spatially_row, 
+                                                      args=(dist,grid_points,x,y,method), axis=1)
+    u_upper["spatially_interpolated"] = u_upper.apply(_interpolate_spatially_row,
+                                                      args=(dist,grid_points,x,y,method), axis=1)
+    u_lower = pd.Series(u_lower["spatially_interpolated"], name='wd')
+    u_upper = pd.Series(u_upper["spatially_interpolated"], name='wd')
+    u_final = _interpolate_vertically(lat, lon, 
+                                      u_lower, u_upper, 
+                                      height, desired_point, 
+                                      "polynomial")
+
+    # Getting the 'v' wind speed vector for lower and upper heights
+    v_lower, v_upper = transformation._convert_to_vector_v(wd_lower_df, 
+                                                           wd_upper_df, 
+                                                           ws_lower_df, 
+                                                           ws_upper_df)
+    v_lower["spatially_interpolated"] = v_lower.apply(_interpolate_spatially_row, 
+                                                      args=(dist,grid_points,x,y,method), axis=1)
+    v_upper["spatially_interpolated"] = v_upper.apply(_interpolate_spatially_row, 
+                                                      args=(dist,grid_points,x,y,method), axis=1)
+    v_lower = pd.Series(v_lower["spatially_interpolated"], name='wd')
+    v_upper = pd.Series(v_upper["spatially_interpolated"], name='wd')
+    v_final = _interpolate_vertically(lat, lon, 
+                                      v_lower, v_upper, 
+                                      height, desired_point, 
+                                      "polynomial")
+
+    # Combining the interpolated 'u' and 'v' vectors into an interpolated
+    # wind speed and wind direction
     ws_result = transformation._convert_to_ws(u_final, v_final) 
     wd_result = transformation._convert_to_degrees(u_final, v_final)
-    
     wd_result = wd_result.apply(transformation._convert_to_math_deg, args=())
     
     dt.name = "datetime"
