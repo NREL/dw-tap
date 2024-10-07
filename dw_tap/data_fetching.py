@@ -39,8 +39,7 @@ def getData(f, lat, lon, height,
             inverse_monin_obukhov_length = False,
             start_time_idx=None, end_time_idx=None, time_stride=None, 
             srw=False,
-            saved_dt=None,
-            interpolate=True
+            saved_dt=None
            ): 
     """
     Horizontally and vertically interpolates wind speed, wind direction, and 
@@ -120,14 +119,17 @@ def getData(f, lat, lon, height,
     maxx = max(point_idx,key=itemgetter(0))[0]
     miny = min(point_idx,key=itemgetter(1))[1] 
     maxy = max(point_idx,key=itemgetter(1))[1]
-    
+
+    # print(minx, maxx, miny, maxy)
+    # print(start_time_idx, end_time_idx)
+    # print(lower_height, upper_height)
     # Wind Speed Fetching
     ws_lower = f['windspeed_%sm' % lower_height]
     ws_lower = ws_lower[start_time_idx:end_time_idx+1:time_stride, minx:maxx+1, miny:maxy+1]
     ws_lower_df = pd.DataFrame({'1': ws_lower[:, 0, 0], 
-                               '2': ws_lower[:, 1, 0], 
-                               '3': ws_lower[:, 1, 1], 
-                               '4': ws_lower[:, 0, 1]})
+                                '2': ws_lower[:, 1, 0], 
+                                '3': ws_lower[:, 1, 1], 
+                                '4': ws_lower[:, 0, 1]})
     ws_upper = f['windspeed_%sm' % upper_height]
     ws_upper = ws_upper[start_time_idx:end_time_idx+1:time_stride, minx:maxx+1, miny:maxy+1]
     ws_upper_df = pd.DataFrame({'1': ws_upper[:, 0, 0], 
@@ -243,6 +245,111 @@ def getData(f, lat, lon, height,
     
     return df 
 
+def get_wtk_data_nn(f, lat, lon, height, 
+               start_time=None, end_time=None, time_stride=None): 
+    dset_coords = f['coordinates']
+    projstring = """+proj=lcc +lat_1=30 +lat_2=60 
+                    +lat_0=38.47240422490422 +lon_0=-96.0 
+                    +x_0=0 +y_0=0 +ellps=sphere 
+                    +units=m +no_defs """
+    projectLcc = Proj(projstring)
+    origin_ll = reversed(dset_coords[0][0])  # Grab origin directly from database
+    origin = projectLcc(*origin_ll)
+    coords = (lon,lat)
+    coords = projectLcc(*coords)
+    delta = np.subtract(coords, origin)
+    ij = [int(round(x/2000)) for x in delta]
+    nn_index = tuple(reversed(ij))
+
+    # Skip this site if it is not within the bounds of the WTK data
+    # print(dset_coords.shape)
+    # print(nn_index)
+    if nn_index[0] < 0 or nn_index[1] < 0:
+        return None
+    if nn_index[0] >= dset_coords.shape[0] or nn_index[1] >= dset_coords.shape[1]:
+        return None
+        
+    dt = _getDateTime(f)
+
+    # dt = f["datetime"]
+    # dt = pd.DataFrame({"datetime": dt[:]},index=range(0,dt.shape[0]))
+    # dt['datetime'] = dt['datetime'].apply(dateutil.parser.parse)
+    # dt["datetime"] = pd.to_datetime(dt['datetime'])
+    # return dt["datetime"]
+    
+    # Determine the model data to retrieve based on input parameters
+    if (start_time is not None) and (end_time is not None) and (time_stride is not None):
+        # All three are specified
+        #dt=dt.iloc[start_time_idx:end_time_idx+1:time_stride].reset_index(drop=True)
+        dt=dt.loc[(dt >= start_time) & (dt <= end_time)].iloc[::time_stride]
+
+    wtk_heights = np.array([10, 40, 60, 80, 100, 120, 140, 160, 200])
+    if height in wtk_heights:
+        ws = f['windspeed_%sm' % height][dt.index[0]:dt.index[-1]:time_stride, nn_index[0], nn_index[1]]
+        wd = f['winddirection_%sm' % height][dt.index[0]:dt.index[-1]:time_stride, nn_index[0], nn_index[1]]
+        dt = dt.reset_index(drop=True)
+    
+        dt.name = "datetime"
+        df = pd.DataFrame(dt)
+        df["ws"] = ws
+        df["wd"] = wd
+        
+        return df
+    elif height < 40: 
+        lower_height = 40
+        upper_height = 60
+    elif height > 200:
+        lower_height = 160
+        upper_height = 200
+    else: 
+        lower_height = wtk_heights[wtk_heights < height].max()
+        upper_height = wtk_heights[wtk_heights > height].min()
+        
+    # ws_lower = f['windspeed_%sm' % lower_height][dt.index[0]:dt.index[-1] + 1:time_stride, nn_index[0], nn_index[1]]
+    # print(dt.index)
+    # print(nn_index)
+    # print(lower_height, upper_height)
+    ws_lower = f['windspeed_%sm' % lower_height][dt.index[0]:dt.index[-1]:time_stride, nn_index[0], nn_index[1]]
+    ws_upper = f['windspeed_%sm' % upper_height][dt.index[0]:dt.index[-1]:time_stride, nn_index[0], nn_index[1]]
+    wd_lower = f['winddirection_%sm' % lower_height][dt.index[0]:dt.index[-1]:time_stride, nn_index[0], nn_index[1]]
+    wd_upper = f['winddirection_%sm' % upper_height][dt.index[0]:dt.index[-1]:time_stride, nn_index[0], nn_index[1]]
+
+    # wd_lower = pd.Series(wd_lower).apply(transformation._convert_to_met_deg)
+    # wd_upper = pd.Series(wd_upper).apply(transformation._convert_to_met_deg)
+    wd_lower = (270 - wd_lower) % 360
+    wd_upper = (270 - wd_upper) % 360
+
+    u_lower = pd.Series(-ws_lower * np.sin((math.pi/180) * wd_lower))
+    u_upper = pd.Series(-ws_upper * np.sin((math.pi/180) * wd_upper))
+    v_lower = pd.Series(-ws_lower * np.cos((math.pi/180) * wd_lower))
+    v_upper = pd.Series(-ws_upper * np.cos((math.pi/180) * wd_upper))
+
+    desired_point = points.XYZPoint(lat, lon, height, 'desired')
+    u_final = _interpolate_vertically(lat, lon, 
+                                      u_lower, u_upper, 
+                                      height, desired_point, 
+                                      "polynomial")
+    v_final = _interpolate_vertically(lat, lon, 
+                                      v_lower, v_upper, 
+                                      height, desired_point, 
+                                      "polynomial")
+
+    ws_result = transformation._convert_to_ws(u_final, v_final) 
+    wd_result = transformation._convert_to_degrees(u_final, v_final)
+    # wd_result = wd_result.apply(transformation._convert_to_math_deg, args=())
+    wd_result = (270 - wd_result) % 360
+
+    # ws = f['windspeed_%sm' % height][dt.index[0]:dt.index[-1] + 1:time_stride, nn_index[0], nn_index[1]]
+    # wd = f['winddirection_%sm' % height][dt.index[0]:dt.index[-1] + 1:time_stride, nn_index[0], nn_index[1]]
+    dt = dt.reset_index(drop=True)
+
+    dt.name = "datetime"
+    df = pd.DataFrame(dt)
+    df["ws"] = ws_result
+    df["wd"] = wd_result
+    
+    return df
+
 def get_data_wtk_led_on_eagle(myr, 
                              lat, lon, height, 
                              method='IDW', 
@@ -355,6 +462,130 @@ def get_data_wtk_led_on_eagle(myr,
          print("Warning: WTK-LED does not include pressure and temperature timeseries. Power estimation is currently unavailable.")
     
     return df 
+
+
+def get_data_wtk_led_nn(myr,
+                        lat, lon, height, 
+                        start_time=None, end_time=None, time_stride=None): 
+    """
+    Horizontally and vertically interpolates wind speed, wind direction, and potentially temperature and pressure. Horizontal interpolation for wind speed and direction uses inverse distance weight. Horizontal interpolation for temperature and pressure uses nearest neighbor. Vertical interpolation uses linear method for all variables. 
+    Input: read in file, latitude, longitude, height of potential turbine/candidate turbine, horizontal interpolation method, boolean indicating whether temperature and pressure data will be needed for power estimate. 
+    Output: (1) If power_estimate is true, returns are wind speed, wind direction, datetime, temperature and pressure. (2) If power_estimate is false, returns are wind speed, wind direction, and datetime. All values horizontally and vertically interpolated. 
+    """
+    dt = myr.time_index
+    dt = pd.DataFrame({"datetime": dt[:]}, index=range(0,dt.shape[0]))
+    dt = dt["datetime"]
+    
+    if (start_time is not None) and (end_time is not None) and (time_stride is not None):
+        # All three are specified
+        #dt=dt.iloc[start_time_idx:end_time_idx+1:time_stride].reset_index(drop=True)
+        dt=dt.loc[(dt >= start_time) & (dt <= end_time)].iloc[::time_stride]
+        
+    desired_point = points.XYZPoint(lat, lon, height, 'desired')
+        
+    dd, ii = myr.tree.query((lat, lon), 1)
+    #print("Distances and indices:\n", dd,ii) 
+    # Example output: [0.01282314 0.0143017  0.01750789 0.01969273] [2663301 2665250 2663302 2665251]
+    # Note that ii indices aren't contiguous
+    
+    wtk_heights = np.array([10, 40, 60, 80, 100, 120, 140, 160, 200])
+    if height in wtk_heights:
+        ws = myr['windspeed_%sm' % height, dt.index[0]:dt.index[-1]:time_stride, ii[0]]
+        wd = myr['winddirection_%sm' % height, dt.index[0]:dt.index[-1]:time_stride, ii[0]]
+        dt = dt.reset_index(drop=True)
+        dt.name = "datetime"
+        df = pd.DataFrame(dt)
+        df["ws"] = ws
+        df["wd"] = wd
+        return df
+    elif height < 40: 
+        lower_height = 40
+        upper_height = 60
+    elif height > 200:
+        lower_height = 160
+        upper_height = 200
+    else: 
+        lower_height = wtk_heights[wtk_heights < height].max()
+        upper_height = wtk_heights[wtk_heights > height].min()
+    
+    # Fetching wind speed & direction
+    ws_lower = myr["windspeed_%sm" % lower_height, dt.index[0]:dt.index[-1]:time_stride, ii[0]] 
+    wd_lower = myr["winddirection_%sm" % lower_height, dt.index[0]:dt.index[-1]:time_stride, ii[0]]
+    ws_upper = myr["windspeed_%sm" % upper_height, dt.index[0]:dt.index[-1]:time_stride, ii[0]]
+    wd_upper = myr["winddirection_%sm" % upper_height, dt.index[0]:dt.index[-1]:time_stride, ii[0]]
+    
+    #Spatial for vectors (horizontal and vertical)
+    dist = dd
+    
+    #U vector
+    wd_lower = (270 - wd_lower) % 360
+    wd_upper = (270 - wd_upper) % 360
+    # wd1 = wd1.apply(transformation._convert_to_met_deg, args=(), axis = 1)
+    # wd2 = wd2.apply(transformation._convert_to_met_deg, args=(), axis = 1)
+
+    u_lower = pd.Series(-ws_lower * np.sin((math.pi/180) * wd_lower))
+    u_upper = pd.Series(-ws_upper * np.sin((math.pi/180) * wd_upper))
+    v_lower = pd.Series(-ws_lower * np.cos((math.pi/180) * wd_lower))
+    v_upper = pd.Series(-ws_upper * np.cos((math.pi/180) * wd_upper))
+    # u, u1 = transformation._convert_to_vector_u(wd1, wd2, ws1, ws2)
+    
+    #u["spatially_interpolated"] = u.apply(_interpolate_spatially_row, 
+    #                                      args=(dist, grid_points, x, y, method), axis=1)
+    # 
+    # 'IDW' doesn't use gridpoints - going for a quick implementation for IDW only; x and y aren't needed either
+    # u["spatially_interpolated"] = u.apply(_interpolate_spatially_row, 
+    #                                       args=(dist, [], [], [], 'IDW'), axis=1)
+    
+    # u1["spatially_interpolated"] = u1.apply(_interpolate_spatially_row, 
+    #                                        args=(dist, [], [], [], 'IDW'), axis=1)
+    # u = pd.Series(u["spatially_interpolated"], name='wd')
+    # u1 = pd.Series(u1["spatially_interpolated"], name='wd')
+    
+    #print("u_final:\n", u_final)
+    
+    # v, v1 = transformation._convert_to_vector_v(wd1, wd2, ws1, ws2)
+    # v["spatially_interpolated"] = v.apply(_interpolate_spatially_row, 
+    #                                       args=(dist, [], [], [], 'IDW'), axis=1)
+    # v1["spatially_interpolated"] = v1.apply(_interpolate_spatially_row, 
+    #                                         args=(dist, [], [], [], 'IDW'), axis=1)
+    # v = pd.Series(v["spatially_interpolated"], name='wd')
+    # v1 = pd.Series(v1["spatially_interpolated"], name='wd')
+    # v_final = _interpolate_vertically(lat, lon, v, v1, height, desired_point, "polynomial")
+    #print("v_final:\n", v_final)
+
+    desired_point = points.XYZPoint(lat, lon, height, 'desired')
+    u_final = _interpolate_vertically(lat, lon, 
+                                      u_lower, u_upper, 
+                                      height, desired_point, 
+                                      "polynomial")
+    v_final = _interpolate_vertically(lat, lon, 
+                                      v_lower, v_upper, 
+                                      height, desired_point, 
+                                      "polynomial")
+
+    ws_result = transformation._convert_to_ws(u_final, v_final) 
+    wd_result = transformation._convert_to_degrees(u_final, v_final)
+    # wd_result = wd_result.apply(transformation._convert_to_math_deg, args=())
+    wd_result = (270 - wd_result) % 360
+
+    # ws = f['windspeed_%sm' % height][dt.index[0]:dt.index[-1] + 1:time_stride, nn_index[0], nn_index[1]]
+    # wd = f['winddirection_%sm' % height][dt.index[0]:dt.index[-1] + 1:time_stride, nn_index[0], nn_index[1]]
+    dt = dt.reset_index(drop=True)
+    
+    # ws_result = transformation._convert_to_ws(v_final, u_final) 
+    # wd_result = transformation._convert_to_degrees(v_final, u_final)
+    #print("ws_result:\n", ws_result)
+    #print("wd_result:\n", wd_result)
+    
+    # wd_result = wd_result.apply(transformation._convert_to_math_deg, args=())
+    
+    dt.name = "datetime"
+    df = pd.DataFrame(dt)
+    df["ws"] = ws_result
+    df["wd"] = wd_result
+    
+    return df 
+    
 
 def _getDateTime(f):
     """ Retrieves and parses date and time from data returning dt["datetime"] """
