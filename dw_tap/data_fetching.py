@@ -488,7 +488,7 @@ def get_data_wtk_led_nn(myr,
     # Example output: [0.01282314 0.0143017  0.01750789 0.01969273] [2663301 2665250 2663302 2665251]
     # Note that ii indices aren't contiguous
     
-    wtk_heights = np.array([10, 40, 60, 80, 100, 120, 140, 160, 200])
+    wtk_heights = np.array([10, 20, 40, 60, 80, 100, 120, 140, 160, 180, 200, 250, 300, 500, 1000])
     if height in wtk_heights:
         ws = myr['windspeed_%sm' % height, dt.index[0]:dt.index[-1]:time_stride, ii[0]]
         wd = myr['winddirection_%sm' % height, dt.index[0]:dt.index[-1]:time_stride, ii[0]]
@@ -498,12 +498,12 @@ def get_data_wtk_led_nn(myr,
         df["ws"] = ws
         df["wd"] = wd
         return df
-    elif height < 40: 
-        lower_height = 40
-        upper_height = 60
-    elif height > 200:
-        lower_height = 160
-        upper_height = 200
+    elif height < 10: 
+        lower_height = 10
+        upper_height = 20
+    elif height > 1000:
+        lower_height = 500
+        upper_height = 1000
     else: 
         lower_height = wtk_heights[wtk_heights < height].max()
         upper_height = wtk_heights[wtk_heights > height].min()
