@@ -464,34 +464,34 @@ def get_data_wtk_led_on_eagle(myr,
     return df 
 
 
-def get_data_wtk_led_nn(myr,
+def get_data_wtk_led_nn(myr_pathstr,
                         lat, lon, height, 
                         start_time=None, end_time=None, time_stride=None): 
     """
-    Horizontally and vertically interpolates wind speed, wind direction, and potentially temperature and pressure. Horizontal interpolation for wind speed and direction uses inverse distance weight. Horizontal interpolation for temperature and pressure uses nearest neighbor. Vertical interpolation uses linear method for all variables. 
-    Input: read in file, latitude, longitude, height of potential turbine/candidate turbine, horizontal interpolation method, boolean indicating whether temperature and pressure data will be needed for power estimate. 
-    Output: (1) If power_estimate is true, returns are wind speed, wind direction, datetime, temperature and pressure. (2) If power_estimate is false, returns are wind speed, wind direction, and datetime. All values horizontally and vertically interpolated. 
+    Vertically interpolates wind speed and wind direction. 
+    Vertical interpolation uses linear method for all variables. 
+    Input: path string to get read in file, latitude, longitude, height of potential turbine/candidate turbine
+    Output: Pandas DataFrame of wind speed, wind direction, and datetime. 
     """
     dt = myr.time_index
     dt = pd.DataFrame({"datetime": dt[:]}, index=range(0,dt.shape[0]))
     dt = dt["datetime"]
     
     if (start_time is not None) and (end_time is not None) and (time_stride is not None):
-        # All three are specified
-        #dt=dt.iloc[start_time_idx:end_time_idx+1:time_stride].reset_index(drop=True)
         dt=dt.loc[(dt >= start_time) & (dt <= end_time)].iloc[::time_stride]
         
     desired_point = points.XYZPoint(lat, lon, height, 'desired')
         
-    dd, ii = myr.tree.query((lat, lon), 1)
-    #print("Distances and indices:\n", dd,ii) 
-    # Example output: [0.01282314 0.0143017  0.01750789 0.01969273] [2663301 2665250 2663302 2665251]
-    # Note that ii indices aren't contiguous
+    dd, ii = myr.tree.query((lat, lon), 1) # This implementation does not use dd
     
     wtk_heights = np.array([10, 20, 40, 60, 80, 100, 120, 140, 160, 180, 200, 250, 300, 500, 1000])
     if height in wtk_heights:
-        ws = myr['windspeed_%sm' % height, dt.index[0]:dt.index[-1]:time_stride, ii[0]]
-        wd = myr['winddirection_%sm' % height, dt.index[0]:dt.index[-1]:time_stride, ii[0]]
+        if 'ANL_4km_north_america' in myr_pathstr:
+            myr = MultiYearWindX(myr_pathstr, hsds=False)
+        else:
+            myr = MultiYearWindX(myr_pathstr + '_%sm.h5' % height, hsds=False)
+        ws = myr['windspeed_%sm' % height, dt.index[0]:dt.index[-1] + 1:time_stride, ii]
+        wd = myr['winddirection_%sm' % height, dt.index[0]:dt.index[-1] + 1:time_stride, ii]
         dt = dt.reset_index(drop=True)
         dt.name = "datetime"
         df = pd.DataFrame(dt)
@@ -507,52 +507,34 @@ def get_data_wtk_led_nn(myr,
     else: 
         lower_height = wtk_heights[wtk_heights < height].max()
         upper_height = wtk_heights[wtk_heights > height].min()
-    
-    # Fetching wind speed & direction
-    ws_lower = myr["windspeed_%sm" % lower_height, dt.index[0]:dt.index[-1]:time_stride, ii[0]] 
-    wd_lower = myr["winddirection_%sm" % lower_height, dt.index[0]:dt.index[-1]:time_stride, ii[0]]
-    ws_upper = myr["windspeed_%sm" % upper_height, dt.index[0]:dt.index[-1]:time_stride, ii[0]]
-    wd_upper = myr["winddirection_%sm" % upper_height, dt.index[0]:dt.index[-1]:time_stride, ii[0]]
-    
-    #Spatial for vectors (horizontal and vertical)
-    dist = dd
-    
-    #U vector
+
+    if 'ANL_4km_north_america' in myr_pathstr:
+        myr = MultiYearWindX(myr_pathstr, hsds=False)
+
+        # Fetching wind speed & direction
+        ws_lower = myr["windspeed_%sm" % lower_height, dt.index[0]:dt.index[-1]:time_stride, ii] 
+        wd_lower = myr["winddirection_%sm" % lower_height, dt.index[0]:dt.index[-1]:time_stride, ii]
+        ws_upper = myr["windspeed_%sm" % upper_height, dt.index[0]:dt.index[-1]:time_stride, ii]
+        wd_upper = myr["winddirection_%sm" % upper_height, dt.index[0]:dt.index[-1]:time_stride, ii]
+    else:
+        myr_lower = MultiYearWindX(myr_pathstr + '_%sm.h5' % lower_height, hsds=False)
+        myr_upper = MultiYearWindX(myr_pathstr + '_%sm.h5' % upper_height, hsds=False)
+        
+        # Fetching wind speed & direction
+        ws_lower = myr_lower["windspeed_%sm" % lower_height, dt.index[0]:dt.index[-1]:time_stride, ii] 
+        wd_lower = myr_lower["winddirection_%sm" % lower_height, dt.index[0]:dt.index[-1]:time_stride, ii]
+        ws_upper = myr_upper["windspeed_%sm" % upper_height, dt.index[0]:dt.index[-1]:time_stride, ii]
+        wd_upper = myr_upper["winddirection_%sm" % upper_height, dt.index[0]:dt.index[-1]:time_stride, ii]
+
+    # Convert wd to mathematical degrees
     wd_lower = (270 - wd_lower) % 360
     wd_upper = (270 - wd_upper) % 360
-    # wd1 = wd1.apply(transformation._convert_to_met_deg, args=(), axis = 1)
-    # wd2 = wd2.apply(transformation._convert_to_met_deg, args=(), axis = 1)
 
     u_lower = pd.Series(-ws_lower * np.sin((math.pi/180) * wd_lower))
     u_upper = pd.Series(-ws_upper * np.sin((math.pi/180) * wd_upper))
     v_lower = pd.Series(-ws_lower * np.cos((math.pi/180) * wd_lower))
     v_upper = pd.Series(-ws_upper * np.cos((math.pi/180) * wd_upper))
-    # u, u1 = transformation._convert_to_vector_u(wd1, wd2, ws1, ws2)
     
-    #u["spatially_interpolated"] = u.apply(_interpolate_spatially_row, 
-    #                                      args=(dist, grid_points, x, y, method), axis=1)
-    # 
-    # 'IDW' doesn't use gridpoints - going for a quick implementation for IDW only; x and y aren't needed either
-    # u["spatially_interpolated"] = u.apply(_interpolate_spatially_row, 
-    #                                       args=(dist, [], [], [], 'IDW'), axis=1)
-    
-    # u1["spatially_interpolated"] = u1.apply(_interpolate_spatially_row, 
-    #                                        args=(dist, [], [], [], 'IDW'), axis=1)
-    # u = pd.Series(u["spatially_interpolated"], name='wd')
-    # u1 = pd.Series(u1["spatially_interpolated"], name='wd')
-    
-    #print("u_final:\n", u_final)
-    
-    # v, v1 = transformation._convert_to_vector_v(wd1, wd2, ws1, ws2)
-    # v["spatially_interpolated"] = v.apply(_interpolate_spatially_row, 
-    #                                       args=(dist, [], [], [], 'IDW'), axis=1)
-    # v1["spatially_interpolated"] = v1.apply(_interpolate_spatially_row, 
-    #                                         args=(dist, [], [], [], 'IDW'), axis=1)
-    # v = pd.Series(v["spatially_interpolated"], name='wd')
-    # v1 = pd.Series(v1["spatially_interpolated"], name='wd')
-    # v_final = _interpolate_vertically(lat, lon, v, v1, height, desired_point, "polynomial")
-    #print("v_final:\n", v_final)
-
     desired_point = points.XYZPoint(lat, lon, height, 'desired')
     u_final = _interpolate_vertically(lat, lon, 
                                       u_lower, u_upper, 
@@ -565,19 +547,10 @@ def get_data_wtk_led_nn(myr,
 
     ws_result = transformation._convert_to_ws(u_final, v_final) 
     wd_result = transformation._convert_to_degrees(u_final, v_final)
-    # wd_result = wd_result.apply(transformation._convert_to_math_deg, args=())
+    # Convert wd to meteorological degrees
     wd_result = (270 - wd_result) % 360
 
-    # ws = f['windspeed_%sm' % height][dt.index[0]:dt.index[-1] + 1:time_stride, nn_index[0], nn_index[1]]
-    # wd = f['winddirection_%sm' % height][dt.index[0]:dt.index[-1] + 1:time_stride, nn_index[0], nn_index[1]]
     dt = dt.reset_index(drop=True)
-    
-    # ws_result = transformation._convert_to_ws(v_final, u_final) 
-    # wd_result = transformation._convert_to_degrees(v_final, u_final)
-    #print("ws_result:\n", ws_result)
-    #print("wd_result:\n", wd_result)
-    
-    # wd_result = wd_result.apply(transformation._convert_to_math_deg, args=())
     
     dt.name = "datetime"
     df = pd.DataFrame(dt)
