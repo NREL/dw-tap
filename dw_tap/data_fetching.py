@@ -33,6 +33,8 @@ import dw_tap.interpolation.timeseries as timeseries
 import dw_tap.interpolation.interpolation as interpolation
 import dw_tap.vector.vector_transformation as transformation
 
+from rex.resource_extraction import MultiYearWindX
+
 def getData(f, lat, lon, height, 
             method='IDW', 
             power_estimate=False,
@@ -473,16 +475,8 @@ def get_data_wtk_led_nn(myr_pathstr,
     Input: path string to get read in file, latitude, longitude, height of potential turbine/candidate turbine
     Output: Pandas DataFrame of wind speed, wind direction, and datetime. 
     """
-    dt = myr.time_index
-    dt = pd.DataFrame({"datetime": dt[:]}, index=range(0,dt.shape[0]))
-    dt = dt["datetime"]
-    
-    if (start_time is not None) and (end_time is not None) and (time_stride is not None):
-        dt=dt.loc[(dt >= start_time) & (dt <= end_time)].iloc[::time_stride]
         
     desired_point = points.XYZPoint(lat, lon, height, 'desired')
-        
-    dd, ii = myr.tree.query((lat, lon), 1) # This implementation does not use dd
     
     wtk_heights = np.array([10, 20, 40, 60, 80, 100, 120, 140, 160, 180, 200, 250, 300, 500, 1000])
     if height in wtk_heights:
@@ -490,6 +484,10 @@ def get_data_wtk_led_nn(myr_pathstr,
             myr = MultiYearWindX(myr_pathstr, hsds=False)
         else:
             myr = MultiYearWindX(myr_pathstr + '_%sm.h5' % height, hsds=False)
+            
+        dt = _get_dt(myr, start_time, end_time, time_stride)
+        dd, ii = myr.tree.query((lat, lon), 1) # This implementation does not use dd
+            
         ws = myr['windspeed_%sm' % height, dt.index[0]:dt.index[-1] + 1:time_stride, ii]
         wd = myr['winddirection_%sm' % height, dt.index[0]:dt.index[-1] + 1:time_stride, ii]
         dt = dt.reset_index(drop=True)
@@ -510,7 +508,10 @@ def get_data_wtk_led_nn(myr_pathstr,
 
     if 'ANL_4km_north_america' in myr_pathstr:
         myr = MultiYearWindX(myr_pathstr, hsds=False)
-
+        
+        dt = _get_dt(myr, start_time, end_time, time_stride)
+        dd, ii = myr.tree.query((lat, lon), 1) # This implementation does not use dd
+        
         # Fetching wind speed & direction
         ws_lower = myr["windspeed_%sm" % lower_height, dt.index[0]:dt.index[-1]:time_stride, ii] 
         wd_lower = myr["winddirection_%sm" % lower_height, dt.index[0]:dt.index[-1]:time_stride, ii]
@@ -519,6 +520,11 @@ def get_data_wtk_led_nn(myr_pathstr,
     else:
         myr_lower = MultiYearWindX(myr_pathstr + '_%sm.h5' % lower_height, hsds=False)
         myr_upper = MultiYearWindX(myr_pathstr + '_%sm.h5' % upper_height, hsds=False)
+
+        # Choosing myr_lower or myr_upper is arbitrary here 
+        # myr_lower and myr_upper should have the same datetime and coordinate values
+        dt = _get_dt(myr_lower, start_time, end_time, time_stride) 
+        dd, ii = myr_lower.tree.query((lat, lon), 1) # This implementation does not use dd
         
         # Fetching wind speed & direction
         ws_lower = myr_lower["windspeed_%sm" % lower_height, dt.index[0]:dt.index[-1]:time_stride, ii] 
@@ -558,7 +564,14 @@ def get_data_wtk_led_nn(myr_pathstr,
     df["wd"] = wd_result
     
     return df 
-    
+
+def _get_dt(myr, start_time=None, end_time=None, time_stride=None):
+    dt = myr.time_index
+    dt = pd.DataFrame({"datetime": dt[:]}, index=range(0,dt.shape[0]))
+    dt = dt["datetime"]
+    if (start_time is not None) and (end_time is not None) and (time_stride is not None):
+        dt=dt.loc[(dt >= start_time) & (dt <= end_time)].iloc[::time_stride]
+    return dt
 
 def _getDateTime(f):
     """ Retrieves and parses date and time from data returning dt["datetime"] """
