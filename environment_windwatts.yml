@@ -1,0 +1,29 @@
+name: windwatts
+channels:
+- conda-forge
+dependencies:
+- python=3.11
+- fiona
+- tensorflow-base
+- jupyterlab
+- pandas
+- geopandas-base
+- pyproj
+- numpy
+- matplotlib
+- seaborn
+- scikit-learn
+- openpyxl
+- windrose
+- plotly
+- pydeck
+- tqdm
+- shapely
+- scipy
+- statsmodels
+- pip
+- pip:
+  - h5pyd
+  - rosely
+  - kaleido
+  - NREL-rex
