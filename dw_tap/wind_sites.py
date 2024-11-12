@@ -19,6 +19,12 @@ from rex.resource_extraction import MultiYearWindX
 
 from dw_tap.data_fetching import getData, get_wtk_data_nn, get_data_wtk_led_nn
 
+# The following allows finding data directory based on the config in ~/.tap.ini
+import sys
+sys.path.append("../scripts")
+import dw_tap_data 
+print("dw-tap data path set to:", dw_tap_data.path)
+
 
 class SingletonABCMeta(ABCMeta, type):
     """A combined metaclass that handles both abstract base classes
@@ -225,7 +231,7 @@ class WindSiteType(metaclass=SingletonABCMeta):
         ds_2022 = xr.open_dataset(dest_dir / "conus-2022-hourly.grib", engine="cfgrib")
         ds_2023 = xr.open_dataset(dest_dir / "conus-2023-hourly.grib", engine="cfgrib")
 
-        era5_datasets = [ds_2018, ds_2019, ds_2020] #, ds_2021, ds_2022, ds_2023]
+        era5_datasets = [ds_2017, ds_2018, ds_2019, ds_2020, ds_2021, ds_2022, ds_2023]
         
         for site_id, site in tqdm(self.sites.items()):
             if not all(col in site.metadata for col in ('lat','lon')):
