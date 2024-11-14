@@ -17,7 +17,7 @@ from tqdm.auto import tqdm
 
 from rex.resource_extraction import MultiYearWindX
 
-from dw_tap.data_fetching import getData, get_wtk_data_nn, get_data_wtk_led_nn
+from dw_tap.data_fetching import getData, get_wtk_data_nn, get_wtk_data_idw, get_data_wtk_led_nn
 
 # The following allows finding data directory based on the config in ~/.tap.ini
 import sys
@@ -144,30 +144,24 @@ class WindSiteType(metaclass=SingletonABCMeta):
             end_time = site.metadata['time_end']
 
             if 'height' in site.metadata: 
-                if site.wtk_data_nn is not None:
-                    continue
                 # Just one height for this site
                 print(f'Getting WTK data for site: {site_id}'.ljust(40), end='\r')
                 height = site.metadata['height']
                 
-                site.wtk_data_interpolated = getData(f, lat, lon, height,
-                                                     start_time_idx=None, end_time_idx=None, time_stride=None)
-                site.wtk_data_nn = get_wtk_data_nn(f, lat, lon, height,
-                                              start_time=start_time, end_time=end_time, time_stride=1)
+                site.wtk_data_interpolated = get_wtk_data_idw(f, lat, lon, height,
+                                                     start_time=start_time, end_time=end_time, time_stride=1)
+                # site.wtk_data_nn = get_wtk_data_nn(f, lat, lon, height,
+                #                               start_time=start_time, end_time=end_time, time_stride=1)
             elif 'heights' in site.metadata: 
-                if site.wtk_data_nn is not None and len(site.wtk_data_nn) > 0 and all([data is not None for data in site.wtk_data_nn.values()]):
-                    print('Site already has WTK data')
-                    continue
-                #print(site.wtk_data_nn)
                 # Multiple heights for this site
                 site.wtk_data_interpolated = {}
                 site.wtk_data_nn = {}
                 for height in site.metadata['heights']:
                     print(f'Getting WTK data for site: {site_id} and height: {height}m'.ljust(80), end='\r')
-                    site.wtk_data_interpolated[height] = getData(f, lat, lon, height,
-                                                                 start_time_idx=None, end_time_idx=None, time_stride=None)
-                    site.wtk_data_nn[height] = get_wtk_data_nn(f, lat, lon, height,
-                                                          start_time=start_time, end_time=end_time, time_stride=1)
+                    site.wtk_data_interpolated = get_wtk_data_idw(f, lat, lon, height,
+                                                     start_time=start_time, end_time=end_time, time_stride=1)
+                    # site.wtk_data_nn[height] = get_wtk_data_nn(f, lat, lon, height,
+                    #                                       start_time=start_time, end_time=end_time, time_stride=1)
             else:
                 continue
 
