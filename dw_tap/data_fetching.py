@@ -370,7 +370,7 @@ def get_wtk_data_idw(f, lat, lon, height,
     def power_law(ws_lower, ws_upper, height_lower, height_upper, height):
         # Use default alpha if ws_lower and ws_upper are opposite directions, or if either ws == 0
         alpha = np.where(
-            np.isnan(ws_lower) | np.isnan(ws_upper) | (ws_lower * ws_upper <= 0),
+            (ws_lower * ws_upper <= 0),
             1/7.0,
             np.log(ws_lower/ws_upper) / np.log(height_lower/height_upper)
         )
@@ -385,6 +385,8 @@ def get_wtk_data_idw(f, lat, lon, height,
     if (start_time is not None) and (end_time is not None) and (time_stride is not None):
         # All three are specified
         dt=dt.loc[(dt >= start_time) & (dt <= end_time)].iloc[::time_stride]
+        if len(dt) == 0: # No overlap
+            return None
     
     # grid_points will either be the wtk grid points, or they will be -1
     # point_idx: List of grid index tuples for WTK bounding box starting from bottom left and moving clockwise. 
@@ -424,42 +426,39 @@ def get_wtk_data_idw(f, lat, lon, height,
     maxy = max(point_idx,key=itemgetter(1))[1]
 
     # Wind Speed Fetching
-    try:
-        ws_lower = f['windspeed_%sm' % lower_height]
-        ws_lower = ws_lower[dt.index[0]:dt.index[-1]:time_stride, minx:maxx+1, miny:maxy+1]
-        ws_lower_df = pd.DataFrame({'1': ws_lower[:, 0, 0], 
-                                    '2': ws_lower[:, 1, 0], 
-                                    '3': ws_lower[:, 1, 1], 
-                                    '4': ws_lower[:, 0, 1]})
-        ws_upper = f['windspeed_%sm' % upper_height]
-        ws_upper = ws_upper[dt.index[0]:dt.index[-1]:time_stride, minx:maxx+1, miny:maxy+1]
-        ws_upper_df = pd.DataFrame({'1': ws_upper[:, 0, 0], 
-                                    '2': ws_upper[:, 1, 0], 
-                                    '3': ws_upper[:, 1, 1], 
-                                    '4': ws_upper[:, 0, 1]})
-        
-        #Wind Direction Fetching
-        wd_lower = f['winddirection_%sm' % lower_height]
-        wd_lower = wd_lower[dt.index[0]:dt.index[-1]:time_stride, minx:maxx+1, miny:maxy+1]
-        wd_lower_df = pd.DataFrame({'1': wd_lower[:, 0, 0], 
-                                    '2': wd_lower[:, 1, 0], 
-                                    '3': wd_lower[:, 1, 1], 
-                                    '4': wd_lower[:, 0, 1]})
-        wd_upper = f['winddirection_%sm' % upper_height]
-        wd_upper = wd_upper[dt.index[0]:dt.index[-1]:time_stride, minx:maxx+1, miny:maxy+1]
-        wd_upper_df = pd.DataFrame({'1': wd_upper[:, 0, 0], 
-                                    '2': wd_upper[:, 1, 0], 
-                                    '3': wd_upper[:, 1, 1], 
-                                    '4': wd_upper[:, 0, 1]})
-    except:
-        print('Error retrieving windspeed data')
-        return None
+    ws_lower = f['windspeed_%sm' % lower_height]
+    ws_lower = ws_lower[dt.index[0]:dt.index[-1]:time_stride, minx:maxx+1, miny:maxy+1]
+    ws_lower_df = pd.DataFrame({'1': ws_lower[:, 0, 0], 
+                                '2': ws_lower[:, 1, 0], 
+                                '3': ws_lower[:, 1, 1], 
+                                '4': ws_lower[:, 0, 1]})
+    ws_upper = f['windspeed_%sm' % upper_height]
+    ws_upper = ws_upper[dt.index[0]:dt.index[-1]:time_stride, minx:maxx+1, miny:maxy+1]
+    ws_upper_df = pd.DataFrame({'1': ws_upper[:, 0, 0], 
+                                '2': ws_upper[:, 1, 0], 
+                                '3': ws_upper[:, 1, 1], 
+                                '4': ws_upper[:, 0, 1]})
+    
+    #Wind Direction Fetching
+    wd_lower = f['winddirection_%sm' % lower_height]
+    wd_lower = wd_lower[dt.index[0]:dt.index[-1]:time_stride, minx:maxx+1, miny:maxy+1]
+    wd_lower_df = pd.DataFrame({'1': wd_lower[:, 0, 0], 
+                                '2': wd_lower[:, 1, 0], 
+                                '3': wd_lower[:, 1, 1], 
+                                '4': wd_lower[:, 0, 1]})
+    wd_upper = f['winddirection_%sm' % upper_height]
+    wd_upper = wd_upper[dt.index[0]:dt.index[-1]:time_stride, minx:maxx+1, miny:maxy+1]
+    wd_upper_df = pd.DataFrame({'1': wd_upper[:, 0, 0], 
+                                '2': wd_upper[:, 1, 0], 
+                                '3': wd_upper[:, 1, 1], 
+                                '4': wd_upper[:, 0, 1]})
     
     # Convert wind direction mathematical degrees to met degrees
     wd_lower_df = wd_lower_df.apply(transformation._convert_to_met_deg, 
                                     args=(), axis=1)
     wd_upper_df = wd_upper_df.apply(transformation._convert_to_met_deg,
                                     args=(), axis=1)
+    
 
     # Break down windspeed into orthogonal components for interpolation
     # We will apply the interpolation process to the orthogonal components,
@@ -475,12 +474,7 @@ def get_wtk_data_idw(f, lat, lon, height,
                                                       args=(dist,grid_points,x,y,"IDW"), axis=1)
     u_lower = pd.Series(u_lower["spatially_interpolated"], name='wd')
     u_upper = pd.Series(u_upper["spatially_interpolated"], name='wd')
-    
     u_final = power_law(u_lower, u_upper, lower_height, upper_height, height) if lower_height != upper_height else u_lower
-    # u_final = _interpolate_vertically(lat, lon, 
-    #                                   u_lower, u_upper, 
-    #                                   height, desired_point, 
-    #                                   "polynomial")
 
     # Getting the 'v' wind speed vector for lower and upper heights
     v_lower, v_upper = transformation._convert_to_vector_v(wd_lower_df, 
@@ -494,22 +488,17 @@ def get_wtk_data_idw(f, lat, lon, height,
     v_lower = pd.Series(v_lower["spatially_interpolated"], name='wd')
     v_upper = pd.Series(v_upper["spatially_interpolated"], name='wd')
     v_final = power_law(v_lower, v_upper, lower_height, upper_height, height) if lower_height != upper_height else v_lower
-    # v_final = _interpolate_vertically(lat, lon, 
-    #                                   v_lower, v_upper, 
-    #                                   height, desired_point, 
-    #                                   "polynomial")
-
+    
     # Combining the interpolated 'u' and 'v' vectors into an interpolated
     # wind speed and wind direction
-    ws_result = transformation._convert_to_ws(u_final, v_final) 
+    ws_result = transformation._convert_to_ws(u_final, v_final)
     wd_result = transformation._convert_to_degrees(u_final, v_final)
     wd_result = wd_result.apply(transformation._convert_to_math_deg, args=())
     
     dt.name = "datetime"
-    df = pd.DataFrame(dt)
+    df = pd.DataFrame(dt).reset_index(drop=True)
     df["ws"] = ws_result
     df["wd"] = wd_result
-    
     return df
 
 

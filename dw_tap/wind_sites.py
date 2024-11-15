@@ -149,8 +149,8 @@ class WindSiteType(metaclass=SingletonABCMeta):
                 
                 site.wtk_data_interpolated = get_wtk_data_idw(f, lat, lon, height,
                                                      start_time=start_time, end_time=end_time, time_stride=1)
-                site.wtk_data_nn = get_wtk_data_nn(f, lat, lon, height,
-                                              start_time=start_time, end_time=end_time, time_stride=1)
+                # site.wtk_data_nn = get_wtk_data_nn(f, lat, lon, height,
+                #                               start_time=start_time, end_time=end_time, time_stride=1)
             elif 'heights' in site.metadata: 
                 # Multiple heights for this site
                 site.wtk_data_interpolated = {}
@@ -159,8 +159,8 @@ class WindSiteType(metaclass=SingletonABCMeta):
                     print(f'Getting WTK data for site: {site_id} and height: {height}m'.ljust(80), end='\r')
                     site.wtk_data_interpolated[height] = get_wtk_data_idw(f, lat, lon, height,
                                                              start_time=start_time, end_time=end_time, time_stride=1)
-                    site.wtk_data_nn[height] = get_wtk_data_nn(f, lat, lon, height,
-                                                          start_time=start_time, end_time=end_time, time_stride=1)
+                    # site.wtk_data_nn[height] = get_wtk_data_nn(f, lat, lon, height,
+                    #                                       start_time=start_time, end_time=end_time, time_stride=1)
             else:
                 continue
 
