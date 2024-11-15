@@ -298,8 +298,8 @@ def get_wtk_data_nn(f, lat, lon, height,
 
     wtk_heights = np.array([10, 40, 60, 80, 100, 120, 140, 160, 200])
     if height in wtk_heights:
-        ws = f['windspeed_%sm' % height][dt.index[0]:dt.index[-1]:time_stride, nn_index[0], nn_index[1]]
-        wd = f['winddirection_%sm' % height][dt.index[0]:dt.index[-1]:time_stride, nn_index[0], nn_index[1]]
+        ws = f['windspeed_%sm' % height][dt.index[0]:dt.index[-1] + 1:time_stride, nn_index[0], nn_index[1]]
+        wd = f['winddirection_%sm' % height][dt.index[0]:dt.index[-1] + 1:time_stride, nn_index[0], nn_index[1]]
         dt = dt.reset_index(drop=True)
     
         dt.name = "datetime"
@@ -322,10 +322,10 @@ def get_wtk_data_nn(f, lat, lon, height,
     # print(dt.index)
     # print(nn_index)
     # print(lower_height, upper_height)
-    ws_lower = f['windspeed_%sm' % lower_height][dt.index[0]:dt.index[-1]:time_stride, nn_index[0], nn_index[1]]
-    ws_upper = f['windspeed_%sm' % upper_height][dt.index[0]:dt.index[-1]:time_stride, nn_index[0], nn_index[1]]
-    wd_lower = f['winddirection_%sm' % lower_height][dt.index[0]:dt.index[-1]:time_stride, nn_index[0], nn_index[1]]
-    wd_upper = f['winddirection_%sm' % upper_height][dt.index[0]:dt.index[-1]:time_stride, nn_index[0], nn_index[1]]
+    ws_lower = f['windspeed_%sm' % lower_height][dt.index[0]:dt.index[-1] + 1:time_stride, nn_index[0], nn_index[1]]
+    ws_upper = f['windspeed_%sm' % upper_height][dt.index[0]:dt.index[-1] + 1:time_stride, nn_index[0], nn_index[1]]
+    wd_lower = f['winddirection_%sm' % lower_height][dt.index[0]:dt.index[-1] + 1:time_stride, nn_index[0], nn_index[1]]
+    wd_upper = f['winddirection_%sm' % upper_height][dt.index[0]:dt.index[-1] + 1:time_stride, nn_index[0], nn_index[1]]
 
     # wd_lower = pd.Series(wd_lower).apply(transformation._convert_to_met_deg)
     # wd_upper = pd.Series(wd_upper).apply(transformation._convert_to_met_deg)
@@ -385,15 +385,13 @@ def get_wtk_data_idw(f, lat, lon, height,
     if (start_time is not None) and (end_time is not None) and (time_stride is not None):
         # All three are specified
         dt=dt.loc[(dt >= start_time) & (dt <= end_time)].iloc[::time_stride]
-        
-    point_lat_lon = (lat, lon)
     
     # grid_points will either be the wtk grid points, or they will be -1
     # point_idx: List of grid index tuples for WTK bounding box starting from bottom left and moving clockwise. 
     # dist: List of distances from point to each bounding box corner, ordered from bottom left corner moving clockwise. 
     # grid_points: List of meters coordinates of the box starting from bottom left and moving clockwise. 
     # x, y: Meter projection of longitude. Meter projection of latitude. 
-    point_idx, dist, grid_points, x, y = _indicesForCoord(f, point_lat_lon[0], point_lat_lon[1])
+    point_idx, dist, grid_points, x, y = _indicesForCoord(f, lat, lon)
 
     # Get lower and upper heighs available in WTK data for vertical interpolation
     wtk_heights = np.array([10, 40, 60, 80, 100, 120, 140, 160, 200])

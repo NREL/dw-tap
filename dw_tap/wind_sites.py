@@ -13,11 +13,13 @@ import pickle as pkl
 import h5pyd
 import cfgrib
 
+from shapely.geometry import Point
+
 from tqdm.auto import tqdm
 
 from rex.resource_extraction import MultiYearWindX
 
-from dw_tap.data_fetching import getData, get_wtk_data_nn, get_wtk_data_idw, get_data_wtk_led_nn
+from dw_tap.data_fetching import getData, get_wtk_data_nn, get_wtk_data_idw, get_data_wtk_led_nn, get_era5_data
 
 # The following allows finding data directory based on the config in ~/.tap.ini
 import sys
@@ -61,8 +63,6 @@ class WindSiteType(metaclass=SingletonABCMeta):
         
         self.sites = self.create_wind_sites()
         self.metadata = self.create_metadata_gdf()
-
-        #self.get_wtk_data()
 
         self.save()
 
@@ -134,14 +134,13 @@ class WindSiteType(metaclass=SingletonABCMeta):
         f = h5pyd.File("/nrel/wtk-us.h5", 'r', bucket="nrel-pds-hsds") 
         
         for site_id, site in tqdm(self.sites.items()):
-            if not site.metadata['wtk_overlap']:
-                continue
-            if not all(key in site.metadata for key in ['lat', 'lon', 'time_start', 'time_end']):
+            if not ('lat' in site.metadata and 'lon' in site.metadata):
                 continue
             lat = site.metadata['lat']
             lon = site.metadata['lon']
-            start_time = site.metadata['time_start']
-            end_time = site.metadata['time_end']
+
+            start_time = site.metadata['time_start'] if 'time_start' in site.metadata else None
+            end_time = site.metadata['time_end'] if 'time_end' in site.metadata else None
 
             if 'height' in site.metadata: 
                 # Just one height for this site
@@ -150,18 +149,18 @@ class WindSiteType(metaclass=SingletonABCMeta):
                 
                 site.wtk_data_interpolated = get_wtk_data_idw(f, lat, lon, height,
                                                      start_time=start_time, end_time=end_time, time_stride=1)
-                # site.wtk_data_nn = get_wtk_data_nn(f, lat, lon, height,
-                #                               start_time=start_time, end_time=end_time, time_stride=1)
+                site.wtk_data_nn = get_wtk_data_nn(f, lat, lon, height,
+                                              start_time=start_time, end_time=end_time, time_stride=1)
             elif 'heights' in site.metadata: 
                 # Multiple heights for this site
                 site.wtk_data_interpolated = {}
                 site.wtk_data_nn = {}
                 for height in site.metadata['heights']:
                     print(f'Getting WTK data for site: {site_id} and height: {height}m'.ljust(80), end='\r')
-                    site.wtk_data_interpolated = get_wtk_data_idw(f, lat, lon, height,
-                                                     start_time=start_time, end_time=end_time, time_stride=1)
-                    # site.wtk_data_nn[height] = get_wtk_data_nn(f, lat, lon, height,
-                    #                                       start_time=start_time, end_time=end_time, time_stride=1)
+                    site.wtk_data_interpolated[height] = get_wtk_data_idw(f, lat, lon, height,
+                                                             start_time=start_time, end_time=end_time, time_stride=1)
+                    site.wtk_data_nn[height] = get_wtk_data_nn(f, lat, lon, height,
+                                                          start_time=start_time, end_time=end_time, time_stride=1)
             else:
                 continue
 
@@ -186,7 +185,7 @@ class WindSiteType(metaclass=SingletonABCMeta):
                 # Just one height for this site
                 print(f'Getting WTK-LED data for site: {site_id}'.ljust(40), end='\r')
                 height = site.metadata['height']
-                site.wtk_led_data_nn[myr_name] = get_data_wtk_led_nn(myr_pathstr,
+                site.wtk_led_data_interpolated[myr_name] = get_data_wtk_led_idw(myr_pathstr,
                                                                      lat, lon, height, 
                                                                      start_time=None, end_time=None, time_stride=None)
             elif 'heights' in site.metadata: 
@@ -201,83 +200,83 @@ class WindSiteType(metaclass=SingletonABCMeta):
                 continue
                 
 
-    def get_era5_data(self):
-        def latlon2era5_idx(ds, lat, lon):
-            # The following relies on u100 being one of the variables in the dataset
-            lats = ds.u100.latitude.values
-            lons = ds.u100.longitude.values
-            lat_closest_idx = np.abs(lats - lat).argmin()
-            lon_closest_idx = np.abs(lons - lon).argmin()
-            return lat_closest_idx, lon_closest_idx
+    # def get_era5_data(self):
+    #     def latlon2era5_idx(ds, lat, lon):
+    #         # The following relies on u100 being one of the variables in the dataset
+    #         lats = ds.u100.latitude.values
+    #         lons = ds.u100.longitude.values
+    #         lat_closest_idx = np.abs(lats - lat).argmin()
+    #         lon_closest_idx = np.abs(lons - lon).argmin()
+    #         return lat_closest_idx, lon_closest_idx
 
-        def power_law(df, height):
-            alpha = np.log(df.ws10/df.ws100) / np.log(10/100)
-            #alpha = 1/7.0
-            ws = df.ws100 * ((height / 100) ** alpha)
-            return ws
+    #     def power_law(df, height):
+    #         alpha = np.log(df.ws10/df.ws100) / np.log(10/100)
+    #         #alpha = 1/7.0
+    #         ws = df.ws100 * ((height / 100) ** alpha)
+    #         return ws
 
-        dest_dir = Path(dw_tap_data.path.strip('~')) / "era5/conus"
-        ds_2017 = xr.open_dataset(dest_dir / "conus-2017-hourly.grib", engine="cfgrib")
-        ds_2018 = xr.open_dataset(dest_dir / "conus-2018-hourly.grib", engine="cfgrib")
-        ds_2019 = xr.open_dataset(dest_dir / "conus-2019-hourly.grib", engine="cfgrib")
-        ds_2020 = xr.open_dataset(dest_dir / "conus-2020-hourly.grib", engine="cfgrib")
-        ds_2021 = xr.open_dataset(dest_dir / "conus-2021-hourly.grib", engine="cfgrib")
-        ds_2022 = xr.open_dataset(dest_dir / "conus-2022-hourly.grib", engine="cfgrib")
-        ds_2023 = xr.open_dataset(dest_dir / "conus-2023-hourly.grib", engine="cfgrib")
+    #     dest_dir = Path(dw_tap_data.path.strip('~')) / "era5/conus"
+    #     ds_2017 = xr.open_dataset(dest_dir / "conus-2017-hourly.grib", engine="cfgrib")
+    #     ds_2018 = xr.open_dataset(dest_dir / "conus-2018-hourly.grib", engine="cfgrib")
+    #     ds_2019 = xr.open_dataset(dest_dir / "conus-2019-hourly.grib", engine="cfgrib")
+    #     ds_2020 = xr.open_dataset(dest_dir / "conus-2020-hourly.grib", engine="cfgrib")
+    #     ds_2021 = xr.open_dataset(dest_dir / "conus-2021-hourly.grib", engine="cfgrib")
+    #     ds_2022 = xr.open_dataset(dest_dir / "conus-2022-hourly.grib", engine="cfgrib")
+    #     ds_2023 = xr.open_dataset(dest_dir / "conus-2023-hourly.grib", engine="cfgrib")
 
-        era5_datasets = [ds_2017, ds_2018, ds_2019, ds_2020, ds_2021, ds_2022, ds_2023]
+    #     era5_datasets = [ds_2017, ds_2018, ds_2019, ds_2020, ds_2021, ds_2022, ds_2023]
         
-        for site_id, site in tqdm(self.sites.items()):
-            if not all(col in site.metadata for col in ('lat','lon')):
-                continue
-            if not any(col in site.metadata for col in ('height','heights')):
-                continue
-            lat = site.metadata['lat']
-            lon = site.metadata['lon']
-            idx_for_all_ds = [latlon2era5_idx(ds_indiv, lat, lon) for ds_indiv in era5_datasets]
+    #     for site_id, site in tqdm(self.sites.items()):
+    #         if not all(col in site.metadata for col in ('lat','lon')):
+    #             continue
+    #         if not any(col in site.metadata for col in ('height','heights')):
+    #             continue
+    #         lat = site.metadata['lat']
+    #         lon = site.metadata['lon']
+    #         idx_for_all_ds = [latlon2era5_idx(ds_indiv, lat, lon) for ds_indiv in era5_datasets]
     
-            # Check if all lat_idx, and lon_idx pairs are the same; otherwise, raise an error
-            for idx in range(1,len(idx_for_all_ds)):
-                if idx_for_all_ds[idx] != idx_for_all_ds[idx-1]:
-                    raise ValueError("Mismatch detected for lat/lon indices across given files.")
+    #         # Check if all lat_idx, and lon_idx pairs are the same; otherwise, raise an error
+    #         for idx in range(1,len(idx_for_all_ds)):
+    #             if idx_for_all_ds[idx] != idx_for_all_ds[idx-1]:
+    #                 raise ValueError("Mismatch detected for lat/lon indices across given files.")
             
-            lat_idx, lon_idx = idx_for_all_ds[0][0], idx_for_all_ds[0][1]
+    #         lat_idx, lon_idx = idx_for_all_ds[0][0], idx_for_all_ds[0][1]
             
-            df_list = []
-            for ds_indiv in era5_datasets:
-                u10 = ds_indiv.u10.values[:,lat_idx,lon_idx]
-                v10 = ds_indiv.v10.values[:,lat_idx,lon_idx]
-                u100 = ds_indiv.u100.values[:,lat_idx,lon_idx]
-                v100 = ds_indiv.v100.values[:,lat_idx,lon_idx]
-                tt = ds_indiv.u100.time.values
-                df = pd.DataFrame({"datetime": tt, 
-                                   "u10": u10.flatten(), "v10": v10.flatten(),
-                                   "u100": u100.flatten(), "v100": v100.flatten(),
-                                  })
-                df["datetime"] = pd.to_datetime(df["datetime"])
-                df["ws10"] = np.sqrt(df["u10"]**2 + df["v10"]**2)
-                df["ws100"] = np.sqrt(df["u100"]**2 + df["v100"]**2)
-                if 'heights' in site.metadata:
-                    for height in site.metadata['heights']:
-                        if height == 100:
-                            df[f"ws_{height}"] = df["ws100"]
-                        elif height == 10:
-                            df["ws"] = df["ws10"]
-                        else:
-                            # Power-law vertical interpolation
-                            df[f"ws_{height}"] = power_law(df, height)
-                elif 'height' in site.metadata:
-                    height = site.metadata['height']
-                    if height == 100:
-                        df[f"ws_{height}"] = df["ws100"]
-                    elif height == 10:
-                        df["ws"] = df["ws10"]
-                    else:
-                        # Power-law vertical interpolation
-                        df[f"ws_{height}"] = power_law(df, height)
-                df_list.append(df)
+    #         df_list = []
+    #         for ds_indiv in era5_datasets:
+    #             u10 = ds_indiv.u10.values[:,lat_idx,lon_idx]
+    #             v10 = ds_indiv.v10.values[:,lat_idx,lon_idx]
+    #             u100 = ds_indiv.u100.values[:,lat_idx,lon_idx]
+    #             v100 = ds_indiv.v100.values[:,lat_idx,lon_idx]
+    #             tt = ds_indiv.u100.time.values
+    #             df = pd.DataFrame({"datetime": tt, 
+    #                                "u10": u10.flatten(), "v10": v10.flatten(),
+    #                                "u100": u100.flatten(), "v100": v100.flatten(),
+    #                               })
+    #             df["datetime"] = pd.to_datetime(df["datetime"])
+    #             df["ws10"] = np.sqrt(df["u10"]**2 + df["v10"]**2)
+    #             df["ws100"] = np.sqrt(df["u100"]**2 + df["v100"]**2)
+    #             if 'heights' in site.metadata:
+    #                 for height in site.metadata['heights']:
+    #                     if height == 100:
+    #                         df[f"ws_{height}"] = df["ws100"]
+    #                     elif height == 10:
+    #                         df["ws"] = df["ws10"]
+    #                     else:
+    #                         # Power-law vertical interpolation
+    #                         df[f"ws_{height}"] = power_law(df, height)
+    #             elif 'height' in site.metadata:
+    #                 height = site.metadata['height']
+    #                 if height == 100:
+    #                     df[f"ws_{height}"] = df["ws100"]
+    #                 elif height == 10:
+    #                     df["ws"] = df["ws10"]
+    #                 else:
+    #                     # Power-law vertical interpolation
+    #                     df[f"ws_{height}"] = power_law(df, height)
+    #             df_list.append(df)
                 
-            site.era5_data = pd.concat(df_list).sort_values("datetime").reset_index(drop=True)
+    #         site.era5_data = pd.concat(df_list).sort_values("datetime").reset_index(drop=True)
         
 
     def load(self):
@@ -319,6 +318,45 @@ class WindSite:
         self.wtk_data_nn = None
         self.wtk_data_interpolated = None
         self.era5_data = None
+
+
+class AdhocWindSites(WindSiteType):
+    """This class handles all functionality specific to NPS wind sites.
+    """
+    # There is a top-level xlsx metadata file, and the site IDs
+    # correspond with the names of the individual site csv files.
+    def __init__(self, load=False):
+        super().__init__("adhoc", load)
+
+    def initialize_metadata(self):
+        # Get initial wind site metadata from NPSTurbineData.xlsx
+        metadata_fp = self.data_path / "metadata.csv"
+        self._metadata = pd.read_csv(metadata_fp)
+        self._metadata.set_index('site_id', inplace=True)
+        self._metadata = self._metadata.to_dict('index')
+
+    def create_wind_sites(self):
+        sites = {}
+        for site_id in self._metadata:
+            site = WindSite(self, site_id)
+            sites[site_id] = site
+        return sites
+
+    def get_site_id(self, site_id):
+        return site_id
+            
+    def get_site_data(self, filename):
+        return None
+
+    def derive_site_metadata(self, site_id, data):
+        site_metadata = self._metadata[site_id] if site_id in self._metadata else {}
+        site_metadata['site_id'] = site_id
+        return site_metadata
+
+    def get_model_data(self):
+        self.get_wtk_data()
+        get_era5_data(self)
+        
 
 
 class NPSWindSites(WindSiteType):
