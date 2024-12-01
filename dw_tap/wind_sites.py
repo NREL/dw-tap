@@ -198,85 +198,33 @@ class WindSiteType(metaclass=SingletonABCMeta):
                                                                        start_time=None, end_time=None, time_stride=None)
             else:
                 continue
-                
 
-    # def get_era5_data(self):
-    #     def latlon2era5_idx(ds, lat, lon):
-    #         # The following relies on u100 being one of the variables in the dataset
-    #         lats = ds.u100.latitude.values
-    #         lons = ds.u100.longitude.values
-    #         lat_closest_idx = np.abs(lats - lat).argmin()
-    #         lon_closest_idx = np.abs(lons - lon).argmin()
-    #         return lat_closest_idx, lon_closest_idx
-
-    #     def power_law(df, height):
-    #         alpha = np.log(df.ws10/df.ws100) / np.log(10/100)
-    #         #alpha = 1/7.0
-    #         ws = df.ws100 * ((height / 100) ** alpha)
-    #         return ws
-
-    #     dest_dir = Path(dw_tap_data.path.strip('~')) / "era5/conus"
-    #     ds_2017 = xr.open_dataset(dest_dir / "conus-2017-hourly.grib", engine="cfgrib")
-    #     ds_2018 = xr.open_dataset(dest_dir / "conus-2018-hourly.grib", engine="cfgrib")
-    #     ds_2019 = xr.open_dataset(dest_dir / "conus-2019-hourly.grib", engine="cfgrib")
-    #     ds_2020 = xr.open_dataset(dest_dir / "conus-2020-hourly.grib", engine="cfgrib")
-    #     ds_2021 = xr.open_dataset(dest_dir / "conus-2021-hourly.grib", engine="cfgrib")
-    #     ds_2022 = xr.open_dataset(dest_dir / "conus-2022-hourly.grib", engine="cfgrib")
-    #     ds_2023 = xr.open_dataset(dest_dir / "conus-2023-hourly.grib", engine="cfgrib")
-
-    #     era5_datasets = [ds_2017, ds_2018, ds_2019, ds_2020, ds_2021, ds_2022, ds_2023]
+    def get_era5_data(self):    
+        dest_dir = Path(dw_tap_data.path.strip('~')) / "era5/conus"
+        years = list(range(2007,2014)) + list(range(2017,2024))
         
-    #     for site_id, site in tqdm(self.sites.items()):
-    #         if not all(col in site.metadata for col in ('lat','lon')):
-    #             continue
-    #         if not any(col in site.metadata for col in ('height','heights')):
-    #             continue
-    #         lat = site.metadata['lat']
-    #         lon = site.metadata['lon']
-    #         idx_for_all_ds = [latlon2era5_idx(ds_indiv, lat, lon) for ds_indiv in era5_datasets]
-    
-    #         # Check if all lat_idx, and lon_idx pairs are the same; otherwise, raise an error
-    #         for idx in range(1,len(idx_for_all_ds)):
-    #             if idx_for_all_ds[idx] != idx_for_all_ds[idx-1]:
-    #                 raise ValueError("Mismatch detected for lat/lon indices across given files.")
+        for site_id, site in self.sites.items():
+            site.era5_data = {}
+        
+        for year in years:
+            ds = xr.open_dataset(dest_dir / f"conus-{year}-hourly.grib", engine="cfgrib")
             
-    #         lat_idx, lon_idx = idx_for_all_ds[0][0], idx_for_all_ds[0][1]
-            
-    #         df_list = []
-    #         for ds_indiv in era5_datasets:
-    #             u10 = ds_indiv.u10.values[:,lat_idx,lon_idx]
-    #             v10 = ds_indiv.v10.values[:,lat_idx,lon_idx]
-    #             u100 = ds_indiv.u100.values[:,lat_idx,lon_idx]
-    #             v100 = ds_indiv.v100.values[:,lat_idx,lon_idx]
-    #             tt = ds_indiv.u100.time.values
-    #             df = pd.DataFrame({"datetime": tt, 
-    #                                "u10": u10.flatten(), "v10": v10.flatten(),
-    #                                "u100": u100.flatten(), "v100": v100.flatten(),
-    #                               })
-    #             df["datetime"] = pd.to_datetime(df["datetime"])
-    #             df["ws10"] = np.sqrt(df["u10"]**2 + df["v10"]**2)
-    #             df["ws100"] = np.sqrt(df["u100"]**2 + df["v100"]**2)
-    #             if 'heights' in site.metadata:
-    #                 for height in site.metadata['heights']:
-    #                     if height == 100:
-    #                         df[f"ws_{height}"] = df["ws100"]
-    #                     elif height == 10:
-    #                         df["ws"] = df["ws10"]
-    #                     else:
-    #                         # Power-law vertical interpolation
-    #                         df[f"ws_{height}"] = power_law(df, height)
-    #             elif 'height' in site.metadata:
-    #                 height = site.metadata['height']
-    #                 if height == 100:
-    #                     df[f"ws_{height}"] = df["ws100"]
-    #                 elif height == 10:
-    #                     df["ws"] = df["ws10"]
-    #                 else:
-    #                     # Power-law vertical interpolation
-    #                     df[f"ws_{height}"] = power_law(df, height)
-    #             df_list.append(df)
+            for site_id, site in tqdm(self.sites.items()):
+                if not all(col in site.metadata for col in ('lat','lon')):
+                    continue
+                if not any(col in site.metadata for col in ('height','heights')):
+                    continue
+                lat = site.metadata['lat']
+                lon = site.metadata['lon']
+
                 
-    #         site.era5_data = pd.concat(df_list).sort_values("datetime").reset_index(drop=True)
+                if 'heights' in site.metadata:
+                    height = [height for height in site.metadata['heights']]
+                    site.era5_data[year] = get_data_era5_idw(ds, lat, lon, height)
+                elif 'height' in site.metadata:
+                    height = site.metadata['height']
+                    site.era5_data[year] = get_data_era5_idw(ds, lat, lon, height)
+            
         
 
     def load(self):
