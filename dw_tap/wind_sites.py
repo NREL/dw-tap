@@ -19,7 +19,7 @@ from tqdm.auto import tqdm
 
 from rex.resource_extraction import MultiYearWindX
 
-from dw_tap.data_fetching import getData, get_wtk_data_nn, get_wtk_data_idw, get_data_wtk_led_nn, get_era5_data
+from dw_tap.data_fetching import getData, get_wtk_data_nn, get_wtk_data_idw, get_data_wtk_led_nn, get_data_era5_idw
 
 # The following allows finding data directory based on the config in ~/.tap.ini
 import sys
@@ -201,15 +201,14 @@ class WindSiteType(metaclass=SingletonABCMeta):
 
     def get_era5_data(self):    
         dest_dir = Path(dw_tap_data.path.strip('~')) / "era5/conus"
-        years = list(range(2007,2014)) + list(range(2017,2024))
         
         for site_id, site in self.sites.items():
             site.era5_data = {}
         
-        for year in years:
+        for year in tqdm(range(2000,2024)):
             ds = xr.open_dataset(dest_dir / f"conus-{year}-hourly.grib", engine="cfgrib")
             
-            for site_id, site in tqdm(self.sites.items()):
+            for site_id, site in self.sites.items():
                 if not all(col in site.metadata for col in ('lat','lon')):
                     continue
                 if not any(col in site.metadata for col in ('height','heights')):
