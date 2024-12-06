@@ -6,18 +6,34 @@ from shapely.geometry import Point
 
 def locate_nearest_obs_sites(obs_sites_src, lat, lon, height, km_thresh=100, row_lim=3):
     """ Find nearest observational sites and distplay minimal and clear dataframe sorted by dist and height diff.
-    
-    Usage example: 
+
+    Usage example:
         locate_nearest_obs_sites("./met_tower_obs_summary.geojson", 42.0, -84.0, 50)
     """
-    
-    obs = gpd.read_file(obs_sites_src)
+    print("In locate_nearest_obs_sites")
+
+    if type(obs_sites_src) is list:
+        df_list = []
+        for s in obs_sites_src:
+            gdf = gpd.read_file(s)
+            gdf = gdf.set_crs("EPSG:4326", allow_override=True)
+            df_list.append(gdf)
+            print("read 1 gdf")
+        print("before concat")
+        obs = pd.concat(df_list)
+        print("after concat")
+        obs.reset_index(drop=True, inplace=True)
+        obs = gpd.GeoDataFrame(obs)
+    else:
+        # Single obs file
+        obs = gpd.read_file(obs_sites_src)
+
     obs_in_meters = obs.to_crs('epsg:3740')
 
     p = Point(lat, lon) # (lat, lon is the way to go!)
 
     # Define the source and target CRS
-    source_crs = pyproj.CRS("EPSG:4326")  
+    source_crs = pyproj.CRS("EPSG:4326")
     # WGS 84
     target_crs = pyproj.CRS("EPSG:3740")  #3740
     # Web Mercator
@@ -42,7 +58,7 @@ def locate_nearest_obs_sites(obs_sites_src, lat, lon, height, km_thresh=100, row
         final_res["time_start"].dt.strftime('%b-%Y').astype(str) + "--" + final_res["time_end"].dt.strftime('%b-%Y').astype(str) + ")"
 
     final_res["height"] = final_res["height"].astype(str) + " (different by: " + final_res["heigh diff, m"].astype(str) + ")"
-    
+
     final_res = final_res.drop(columns=["site_id", "geometry", "time_start", "time_end", "n_samples", "heigh diff, m"])
     final_res["wind_speed_mean"] = final_res["wind_speed_mean"].round(2)
     final_res["Distance from selected site, km"] = final_res["Distance from selected site, km"].round(1)
@@ -51,5 +67,5 @@ def locate_nearest_obs_sites(obs_sites_src, lat, lon, height, km_thresh=100, row
                               "height": "Observations height, m (difference from selected height, m)", \
                               "type": "Type of site with observations"}, \
                      inplace=True)
-    
+
     return final_res
