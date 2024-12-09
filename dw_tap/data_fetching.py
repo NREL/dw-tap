@@ -43,6 +43,9 @@ sys.path.append("../scripts")
 
 # Can't import it here (won't work in AWS env)
 # import dw_tap_data
+
+# Can't import it here (won't work in AWS env)
+# import dw_tap_data
 #from rex.resource_extraction import MultiYearWindX
 
 def getData(f, lat, lon, height,
