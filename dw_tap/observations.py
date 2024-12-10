@@ -4,13 +4,15 @@ import geopandas as gpd
 import pyproj
 from shapely.geometry import Point
 
+def style(x):
+    return "<span class=\"bolden\">" + str(x) + "</span>"
+
 def locate_nearest_obs_sites(obs_sites_src, lat, lon, height, km_thresh=100, row_lim=3):
     """ Find nearest observational sites and distplay minimal and clear dataframe sorted by dist and height diff.
 
     Usage example:
         locate_nearest_obs_sites("./met_tower_obs_summary.geojson", 42.0, -84.0, 50)
     """
-    print("In locate_nearest_obs_sites")
 
     if type(obs_sites_src) is list:
         df_list = []
@@ -18,10 +20,7 @@ def locate_nearest_obs_sites(obs_sites_src, lat, lon, height, km_thresh=100, row
             gdf = gpd.read_file(s)
             gdf = gdf.set_crs("EPSG:4326", allow_override=True)
             df_list.append(gdf)
-            print("read 1 gdf")
-        print("before concat")
         obs = pd.concat(df_list)
-        print("after concat")
         obs.reset_index(drop=True, inplace=True)
         obs = gpd.GeoDataFrame(obs)
     else:
@@ -54,18 +53,35 @@ def locate_nearest_obs_sites(obs_sites_src, lat, lon, height, km_thresh=100, row
     else:
         final_res = res.copy()
 
-    final_res["Coverage"] = (final_res["n_samples"]/1000.0).round(1).astype(str) + "K datapoints (" + \
-        final_res["time_start"].dt.strftime('%b-%Y').astype(str) + "--" + final_res["time_end"].dt.strftime('%b-%Y').astype(str) + ")"
+    # met_tower -> metorological tower
+    final_res["type"] = final_res["type"].apply(lambda x: "meteorological tower" if x=="met_tower" else x)
 
-    final_res["height"] = final_res["height"].astype(str) + " (different by: " + final_res["heigh diff, m"].astype(str) + ")"
+    final_res["Coverage"] = (final_res["n_samples"]/1000.0).round(1).astype(str) + "K" # "K datapoints"
+    final_res["Period"] =  final_res["time_start"].dt.strftime('%b-%Y').astype(str) + " -- " + final_res["time_end"].dt.strftime('%b-%Y').astype(str)
+
+    #final_res["height"] = final_res["height"].astype(str) + " (different by: " + final_res["heigh diff, m"].astype(str) + ")"
+    final_res["height"] = final_res["height"].astype(str)
 
     final_res = final_res.drop(columns=["site_id", "geometry", "time_start", "time_end", "n_samples", "heigh diff, m"])
     final_res["wind_speed_mean"] = final_res["wind_speed_mean"].round(2)
     final_res["Distance from selected site, km"] = final_res["Distance from selected site, km"].round(1)
 
     final_res.rename(columns={"wind_speed_mean": "Avg. observed windspeed, m/s",\
-                              "height": "Observations height, m (difference from selected height, m)", \
+                              #"height": "Observations height, m (difference from selected height, m)", \
+                              "height": "Observations height, m", \
                               "type": "Type of site with observations"}, \
                      inplace=True)
 
-    return final_res
+    # Combine several columns into "Details" for final presentation
+    final_res["Details"] = (final_res["Type of site with observations"].apply(lambda x: "Type of observational data: " + style(x)) + "<br>" + \
+        final_res["Distance from selected site, km"].apply(lambda x: "Distance (in kilometers) from selected location and observational site: " + style(x)) + "<br>" + \
+        final_res["Observations height, m"].apply(lambda x: "Height above ground (in meters) at which observations are collected: " + style(x)) + "<br>" + \
+        final_res["Coverage"].apply(lambda x: "How many observations? " + style(x)) + "<br>" + \
+        final_res["Period"].apply(lambda x: "Period covered: " + style(x)) + "<br>").apply(lambda x: "<p><br>" + x + "<br></p>")
+
+    final_res = final_res[["Avg. observed windspeed, m/s", "Details"]]
+
+    if len(final_res) > 0:
+        return final_res.to_html(index=False, escape=False, justify="left", classes=["obs_table"], border=0) #escape=False to allow html formatting within cells
+    else:
+        return """<p id="no_obs_msg">No measurement sites within 100km radius from the selected location.</p>"""
