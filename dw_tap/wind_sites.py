@@ -19,7 +19,7 @@ from tqdm.auto import tqdm
 
 from rex.resource_extraction import MultiYearWindX
 
-from dw_tap.data_fetching import getData, get_wtk_data_nn, get_wtk_data_idw, get_data_wtk_led_nn, get_data_era5_idw
+from dw_tap.data_fetching import getData, get_wtk_data_nn, get_wtk_data_idw, get_data_wtk_led_nn, get_data_era5_idw, get_data_bchrrr_idw
 
 # The following allows finding data directory based on the config in ~/.tap.ini
 import sys
@@ -223,6 +223,38 @@ class WindSiteType(metaclass=SingletonABCMeta):
                 elif 'height' in site.metadata:
                     height = site.metadata['height']
                     site.era5_data[year] = get_data_era5_idw(ds, lat, lon, height)
+
+    def get_bchrrr_data(self, myr_pathstr):
+        # Using the myr file directly here because this is just
+        # one filename type.
+        myr_name = myr_pathstr.split('/')[-1].split('.')[0]
+        myr = MultiYearWindX(myr_pathstr, hsds=False)
+        
+        for site_id, site in tqdm(self.sites.items()):
+            if not all(key in site.metadata for key in ['lat', 'lon', 'time_start', 'time_end']):
+                continue
+            lat = site.metadata['lat']
+            lon = site.metadata['lon']
+            start_time = site.metadata['time_start']
+            end_time = site.metadata['time_end']
+            if not hasattr(site, 'bchrrr_data'):
+                site.bchrrr_data = {}
+
+            if 'height' in site.metadata: 
+                # Just one height for this site
+                print(f'Getting BC-HRRR data for site: {site_id}'.ljust(40), end='\r')
+                height = site.metadata['height']
+                site.bchrrr_data[myr_name] = get_data_bchrrr_idw(myr, lat, lon, height,
+                                                                 start_time=None, end_time=None, time_stride=None)
+            elif 'heights' in site.metadata: 
+                # Multiple heights for this site
+                site.bchrrr_data[myr_name] = {}
+                for height in site.metadata['heights']:
+                    print(f'Getting BC-HRRR data for site: {site_id} and height: {height}m'.ljust(80), end='\r')
+                    site.bchrrr_data[myr_name][height] = get_data_bchrrr_idw(myr, lat, lon, height, 
+                                                                             start_time=None, end_time=None, time_stride=None)
+            else:
+                continue
             
         
 

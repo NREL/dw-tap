@@ -789,6 +789,117 @@ def get_data_era5_idw(ds, lat, lon, height):
     return df
 
 
+def get_data_bchrrr_idw(myr,
+                        lat, lon, height,
+                        start_time=None, end_time=None, time_stride=None):
+    """
+    Input: path string to get read in file, latitude, longitude, height of potential turbine/candidate turbine
+    Output: Pandas DataFrame of wind speed, wind direction, and datetime.
+    """
+
+    def power_law(ws_lower, ws_upper, height_lower, height_upper, height):
+        # Use default alpha if ws_lower and ws_upper are opposite directions, or if either ws == 0
+        alpha = np.where(
+            np.isnan(ws_lower) | np.isnan(ws_upper) | (ws_lower * ws_upper <= 0),
+            1/7.0,
+            np.log(ws_lower/ws_upper) / np.log(height_lower/height_upper)
+        )
+        ws = ws_upper * ((height / height_upper) ** alpha)
+        return ws
+
+    desired_point = points.XYZPoint(lat, lon, height, 'desired')
+
+    wtk_heights = np.array([10, 20, 40, 60, 80, 100, 120, 140, 160, 180, 200])
+    if height in wtk_heights:
+        dt = _get_dt(myr, start_time, end_time, time_stride)
+        dd, ii = myr.tree.query((lat, lon), 4)
+
+        ws_u = list()
+        ws_v = list()
+        for idx, d in zip(ii,dd):
+            ws = myr['windspeed_%sm' % height, dt.index[0]:dt.index[-1] + 1:time_stride, idx]
+            wd = myr['winddirection_%sm' % height, dt.index[0]:dt.index[-1] + 1:time_stride, idx]
+
+            wd = (270 - wd) % 360
+            u = pd.Series(-ws * np.sin((math.pi/180) * wd))
+            v = pd.Series(-ws * np.cos((math.pi/180) * wd))
+            ws_u.append(u)
+            ws_v.append(v)
+
+        u_final = np.sum([u / d for u, d in zip(ws_u, dd)], axis=0) / np.sum([1 / d for d in dd])
+        v_final = np.sum([v / d for v, d in zip(ws_v, dd)], axis=0) / np.sum([1 / d for d in dd])
+
+        ws_final = transformation._convert_to_ws(u_final, v_final)
+        wd_final = transformation._convert_to_degrees(u_final, v_final)
+        # Convert wd to meteorological degrees
+        wd_final = (270 - wd_final) % 360
+
+        dt = dt.reset_index(drop=True)
+        dt.name = "datetime"
+        df = pd.DataFrame(dt)
+        df["ws"] = ws_final
+        df["wd"] = wd_final
+        return df
+    elif height < 10:
+        lower_height = 10
+        upper_height = 20
+    elif height > 1000:
+        lower_height = 500
+        upper_height = 1000
+    else:
+        lower_height = wtk_heights[wtk_heights < height].max()
+        upper_height = wtk_heights[wtk_heights > height].min()
+
+    dt = _get_dt(myr_lower, start_time, end_time, time_stride)
+    dd, ii = myr_lower.tree.query((lat, lon), 4)
+
+    ws_u_lower = list()
+    ws_u_upper = list()
+    ws_v_lower = list()
+    ws_v_upper = list()
+    for idx, d in zip(ii,dd):
+        ws_lower = myr["windspeed_%sm" % lower_height, dt.index[0]:dt.index[-1]:time_stride, idx]
+        wd_lower = myr["winddirection_%sm" % lower_height, dt.index[0]:dt.index[-1]:time_stride, idx]
+        ws_upper = myr["windspeed_%sm" % upper_height, dt.index[0]:dt.index[-1]:time_stride, idx]
+        wd_upper = myr["winddirection_%sm" % upper_height, dt.index[0]:dt.index[-1]:time_stride, idx]
+
+        # Convert wd to mathematical degrees
+        wd_lower = (270 - wd_lower) % 360
+        wd_upper = (270 - wd_upper) % 360
+
+        u_lower = pd.Series(-ws_lower * np.sin((math.pi/180) * wd_lower))
+        u_upper = pd.Series(-ws_upper * np.sin((math.pi/180) * wd_upper))
+        v_lower = pd.Series(-ws_lower * np.cos((math.pi/180) * wd_lower))
+        v_upper = pd.Series(-ws_upper * np.cos((math.pi/180) * wd_upper))
+
+        ws_u_lower.append(u_lower)
+        ws_u_upper.append(u_upper)
+        ws_v_lower.append(v_lower)
+        ws_v_upper.append(v_upper)
+
+    u_lower = np.sum([u / d for u, d in zip(ws_u_lower, dd)], axis=0) / np.sum([1 / d for d in dd])
+    u_upper = np.sum([u / d for u, d in zip(ws_u_upper, dd)], axis=0) / np.sum([1 / d for d in dd])
+    v_lower = np.sum([v / d for v, d in zip(ws_v_lower, dd)], axis=0) / np.sum([1 / d for d in dd])
+    v_upper = np.sum([v / d for v, d in zip(ws_v_upper, dd)], axis=0) / np.sum([1 / d for d in dd])
+
+    u_final = power_law(u_lower, u_upper, lower_height, upper_height, height)
+    v_final = power_law(v_lower, v_upper, lower_height, upper_height, height)
+
+    ws_final = transformation._convert_to_ws(u_final, v_final)
+    wd_final = transformation._convert_to_degrees(u_final, v_final)
+    # Convert wd to meteorological degrees
+    wd_final = (270 - wd_final) % 360
+
+    dt = dt.reset_index(drop=True)
+
+    dt.name = "datetime"
+    df = pd.DataFrame(dt)
+    df["ws"] = ws_final
+    df["wd"] = wd_final
+
+    return df
+
+
 
 def _get_dt(myr, start_time=None, end_time=None, time_stride=None):
     dt = myr.time_index
