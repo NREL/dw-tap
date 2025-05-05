@@ -800,7 +800,7 @@ def get_data_bchrrr_idw(myr,
     def power_law(ws_lower, ws_upper, height_lower, height_upper, height):
         # Use default alpha if ws_lower and ws_upper are opposite directions, or if either ws == 0
         alpha = np.where(
-            np.isnan(ws_lower) | np.isnan(ws_upper) | (ws_lower * ws_upper <= 0),
+            np.isnan(ws_lower) | np.isnan(ws_upper) | (ws_lower <= 0) | (ws_upper <= 0),
             1/7.0,
             np.log(ws_lower/ws_upper) / np.log(height_lower/height_upper)
         )
@@ -850,18 +850,18 @@ def get_data_bchrrr_idw(myr,
         lower_height = wtk_heights[wtk_heights < height].max()
         upper_height = wtk_heights[wtk_heights > height].min()
 
-    dt = _get_dt(myr_lower, start_time, end_time, time_stride)
-    dd, ii = myr_lower.tree.query((lat, lon), 4)
+    dt = _get_dt(myr, start_time, end_time, time_stride)
+    dd, ii = myr.tree.query((lat, lon), 4)
 
     ws_u_lower = list()
     ws_u_upper = list()
     ws_v_lower = list()
     ws_v_upper = list()
-    for idx, d in zip(ii,dd):
-        ws_lower = myr["windspeed_%sm" % lower_height, dt.index[0]:dt.index[-1]:time_stride, idx]
-        wd_lower = myr["winddirection_%sm" % lower_height, dt.index[0]:dt.index[-1]:time_stride, idx]
-        ws_upper = myr["windspeed_%sm" % upper_height, dt.index[0]:dt.index[-1]:time_stride, idx]
-        wd_upper = myr["winddirection_%sm" % upper_height, dt.index[0]:dt.index[-1]:time_stride, idx]
+    for idx in ii:
+        ws_lower = myr["windspeed_%sm" % lower_height, dt.index[0]:dt.index[-1] + 1:time_stride, idx]
+        wd_lower = myr["winddirection_%sm" % lower_height, dt.index[0]:dt.index[-1] + 1:time_stride, idx]
+        ws_upper = myr["windspeed_%sm" % upper_height, dt.index[0]:dt.index[-1] + 1:time_stride, idx]
+        wd_upper = myr["winddirection_%sm" % upper_height, dt.index[0]:dt.index[-1] + 1:time_stride, idx]
 
         # Convert wd to mathematical degrees
         wd_lower = (270 - wd_lower) % 360

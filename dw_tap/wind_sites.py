@@ -229,6 +229,7 @@ class WindSiteType(metaclass=SingletonABCMeta):
         # one filename type.
         myr_name = myr_pathstr.split('/')[-1].split('.')[0]
         myr = MultiYearWindX(myr_pathstr, hsds=False)
+
         
         for site_id, site in tqdm(self.sites.items()):
             if not all(key in site.metadata for key in ['lat', 'lon', 'time_start', 'time_end']):
